@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Табель</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --bg: #f3f5fa; --card: #ffffff; --text: #1b2232; --muted: #8a93a6; --line: #e7eaf1;
+    --accent: #2f6df6; --accent-soft: #eaf0ff; --ok: #1f9d55; --ok-soft: #e6f6ec;
+    --bad: #d93a3a; --bad-soft: #fdecec; --radius: 22px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 14px 14px 28px; }
+  .hidden { display: none !important; }
+  .card { background: var(--card); border-radius: var(--radius); box-shadow: 0 1px 10px rgba(27, 34, 50, .05); }
+
+  /* Шапка */
+  .head { display: flex; align-items: center; gap: 12px; padding: 14px 14px 14px 16px; }
+  .avatar { width: 48px; height: 48px; border-radius: 50%; background: var(--accent); color: #fff;
+    display: grid; place-items: center; font-weight: 700; font-size: 19px; flex: none; }
+  .hello { flex: 1; min-width: 0; }
+  .hello small { color: var(--muted); font-size: 13px; }
+  .hello b { display: block; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .round-btn { width: 46px; height: 46px; border-radius: 50%; border: 0; background: #f1f3f8; color: var(--text);
+    display: grid; place-items: center; cursor: pointer; flex: none; }
+  .round-btn svg { width: 22px; height: 22px; }
+
+  /* Карта */
+  .map-card { position: relative; height: 220px; margin-top: 12px; overflow: hidden; }
+  #map { position: absolute; inset: 0; z-index: 1; background: #e9edf3; }
+  .pill { position: absolute; z-index: 5; top: 12px; left: 12px; right: 12px; text-align: center;
+    background: rgba(255,255,255,.94); border-radius: 999px; padding: 7px 12px; font-size: 13px; font-weight: 600;
+    box-shadow: 0 1px 6px rgba(0,0,0,.08); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .status { position: absolute; z-index: 5; left: 12px; bottom: 12px; border-radius: 999px; padding: 7px 12px;
+    font-size: 13px; font-weight: 600; background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.1); max-width: 70%; }
+  .status.ok { color: var(--ok); } .status.bad { color: var(--bad); } .status.wait { color: var(--muted); }
+  .refresh { position: absolute; z-index: 5; right: 12px; bottom: 12px; width: 56px; height: 56px;
+    border-radius: 50%; border: 0; background: #fff; color: var(--accent); box-shadow: 0 2px 10px rgba(0,0,0,.14);
+    display: grid; place-items: center; cursor: pointer; }
+  .refresh svg { width: 26px; height: 26px; }
+  .spin svg { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .me-dot { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 3px solid #fff;
+    box-shadow: 0 0 0 8px rgba(47,109,246,.18); }
+  .leaflet-control-attribution { font-size: 9px; }
+
+  /* Кнопки отметки */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .act { border: 0; text-align: left; padding: 16px; min-height: 160px; display: flex; flex-direction: column;
+    justify-content: space-between; cursor: pointer; color: var(--text); font: inherit; transition: transform .1s; }
+  .act:active:not(:disabled) { transform: scale(.97); }
+  .act:disabled { cursor: default; opacity: .5; }
+  .act.done:disabled { opacity: .9; }
+  .act .ico { width: 44px; height: 44px; border-radius: 50%; background: #f1f3f8; display: grid; place-items: center; }
+  .act .ico svg { width: 22px; height: 22px; }
+  .act.ready .ico { background: var(--accent-soft); color: var(--accent); }
+  .act.done .ico { background: var(--ok-soft); color: var(--ok); }
+  .act b { display: block; font-size: 17px; margin-top: 14px; }
+  .act small { display: block; color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .act.done small { color: var(--ok); }
+  .loader { width: 20px; height: 20px; border-radius: 50%; border: 3px solid var(--accent-soft);
+    border-top-color: var(--accent); animation: spin .8s linear infinite; }
+
+  /* Комментарии */
+  .sel { position: relative; }
+  .sel select { width: 100%; appearance: none; -webkit-appearance: none; border: 0; border-radius: 18px;
+    background: var(--card); padding: 14px 34px 14px 16px; font-family: inherit; font-size: 14px; font-weight: 600;
+    color: var(--text); box-shadow: 0 1px 10px rgba(27,34,50,.05); }
+  .sel select:disabled { color: var(--muted); }
+  .sel::after { content: ""; position: absolute; right: 16px; top: 50%; width: 7px; height: 7px; margin-top: -6px;
+    border: solid var(--muted); border-width: 0 2px 2px 0; transform: rotate(45deg); pointer-events: none; }
+  .sel.need select { box-shadow: 0 0 0 2px var(--bad); }
+  .other { width: 100%; margin-top: 8px; border: 1px solid var(--line); border-radius: 14px; padding: 11px 13px;
+    font: inherit; background: #fff; }
+
+  .wide-btn { width: 100%; margin-top: 14px; padding: 16px; border-radius: 18px; border: 1px solid #c9d8fd;
+    background: linear-gradient(#f2f6ff, #e6edff); color: #1d3f9a; font-family: inherit; font-size: 15px; font-weight: 700;
+    cursor: pointer; }
+  .today { text-align: center; color: var(--muted); font-size: 13px; margin-top: 14px; }
+
+  /* Регистрация и формы */
+  .form { padding: 20px; margin-top: 12px; }
+  .form h2 { margin: 0 0 4px; font-size: 20px; }
+  .form p { margin: 0 0 16px; color: var(--muted); }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 6px; }
+  .input { width: 100%; border: 1px solid var(--line); border-radius: 14px; padding: 13px 14px; font: inherit;
+    background: #fff; color: var(--text); }
+  .primary { width: 100%; margin-top: 18px; padding: 15px; border: 0; border-radius: 16px; background: var(--accent);
+    color: #fff; font-family: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }
+  .primary:disabled { opacity: .6; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* Нижняя шторка */
+  .overlay { position: fixed; inset: 0; z-index: 50; background: rgba(15, 20, 35, .4); display: flex; align-items: flex-end; }
+  .sheet { width: 100%; max-width: 480px; margin: 0 auto; max-height: 86vh; overflow: auto; background: var(--bg);
+    border-radius: 24px 24px 0 0; padding: 10px 14px 24px; animation: up .2s ease-out; }
+  @keyframes up { from { transform: translateY(40px); opacity: .6; } }
+  .grab { width: 40px; height: 5px; border-radius: 3px; background: #cfd4df; margin: 0 auto 10px; }
+  .sheet h3 { margin: 6px 4px 12px; font-size: 18px; }
+  .sheet h4 { margin: 18px 4px 8px; font-size: 14px; color: var(--muted); font-weight: 600; }
+  .item { display: flex; justify-content: space-between; gap: 10px; padding: 12px 14px; border-radius: 16px;
+    background: var(--card); margin-bottom: 8px; }
+  .item .d { font-weight: 700; }
+  .item .t { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .item .h { font-weight: 700; white-space: nowrap; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+    background: var(--bad-soft); color: var(--bad); margin-left: 6px; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.wait { background: #fff4dd; color: #a36a00; }
+  .empty { text-align: center; color: var(--muted); padding: 24px 0; }
+
+  .toast { position: fixed; z-index: 100; left: 14px; right: 14px; bottom: 20px; max-width: 452px; margin: 0 auto;
+    padding: 14px 16px; border-radius: 16px; color: #fff; background: #1b2232; font-weight: 600;
+    box-shadow: 0 6px 24px rgba(0,0,0,.2); transition: opacity .2s, transform .2s; }
+  .toast.ok { background: var(--ok); } .toast.err { background: var(--bad); }
+  .toast.off { opacity: 0; transform: translateY(12px); pointer-events: none; }
+
+  .center { min-height: 70vh; display: grid; place-items: center; text-align: center; color: var(--muted); padding: 20px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Загрузка / ошибка -->
+  <div id="vLoading" class="center"><div><div class="loader" style="margin:0 auto 12px"></div>Загрузка…</div></div>
+
+  <!-- Регистрация -->
+  <div id="vReg" class="hidden">
+    <div class="card form">
+      <h2>Регистрация</h2>
+      <p>Один раз укажите свои данные и рабочее место.</p>
+      <label for="regName">Фамилия и имя</label>
+      <input id="regName" class="input" autocomplete="name" placeholder="Например: Иванов Иван">
+      <label for="regPoint">Рабочее место</label>
+      <div class="sel"><select id="regPoint"></select></div>
+      <button id="regBtn" class="primary">Готово</button>
+    </div>
+  </div>
+
+  <!-- Главный экран -->
+  <div id="vMain" class="hidden">
+    <div class="card head">
+      <div class="avatar" id="avatar">?</div>
+      <div class="hello"><small>Добро пожаловать</small><b id="userName"></b></div>
+      <button class="round-btn" id="histBtn" aria-label="История">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+      </button>
+    </div>
+
+    <div class="card map-card">
+      <div id="map"></div>
+      <div class="pill" id="pointName"></div>
+      <div class="status wait" id="geoStatus">Определяем местоположение…</div>
+      <button class="refresh" id="refreshBtn" aria-label="Обновить местоположение">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg>
+      </button>
+    </div>
+
+    <div class="grid">
+      <button class="card act" id="btnIn">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <span><b>Начать работу</b><small id="inSub">Нажмите для отметки</small></span>
+      </button>
+      <button class="card act" id="btnOut">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <span><b>Завершить работу</b><small id="outSub">Сначала начните</small></span>
+      </button>
+    </div>
+
+    <div class="grid" style="margin-top:12px">
+      <div>
+        <div class="sel" id="selInWrap"><select id="commentIn"></select></div>
+        <input id="otherIn" class="other hidden" placeholder="Ваш комментарий" maxlength="300">
+      </div>
+      <div>
+        <div class="sel" id="selOutWrap"><select id="commentOut"></select></div>
+        <input id="otherOut" class="other hidden" placeholder="Причина ухода" maxlength="300">
+      </div>
+    </div>
+
+    <button class="wide-btn" id="leaveBtn">Отпрашивание</button>
+    <div class="today" id="todayInfo"></div>
+  </div>
+</div>
+
+<!-- История -->
+<div class="overlay hidden" id="histSheet">
+  <div class="sheet">
+    <div class="grab"></div>
+    <h3>Мои отметки</h3>
+    <div id="histList"><div class="empty">Загрузка…</div></div>
+  </div>
+</div>
+
+<!-- Отпрашивание -->
+<div class="overlay hidden" id="leaveSheet">
+  <div class="sheet">
+    <div class="grab"></div>
+    <h3>Отпрашивание</h3>
+    <div class="card form" style="margin-top:0">
+      <div class="row2">
+        <div><label for="lvFrom">С</label><input type="date" id="lvFrom" class="input"></div>
+        <div><label for="lvTo">По</label><input type="date" id="lvTo" class="input"></div>
+      </div>
+      <label for="lvReason">Причина</label>
+      <div class="sel"><select id="lvReason">
+        <option>Семейные обстоятельства</option>
+        <option>Болезнь</option>
+        <option>Отпуск за свой счёт</option>
+        <option>Учёба</option>
+        <option value="other">Другое…</option>
+      </select></div>
+      <input id="lvOther" class="other hidden" placeholder="Опишите причину" maxlength="300">
+      <button id="lvSend" class="primary">Отправить руководителю</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast off" id="toast"></div>
+
+<script>
+// ===== НАСТРОЙКА: адрес веб-приложения Apps Script (заканчивается на /exec) =====
+const API_URL = 'https://script.google.com/macros/s/AKfycbzA1ezzznz-9pyycxZEJyk_b2sRZ8nXiyAb_paofCfGFVanE-yvreudB-GtE4rkDN2w/exec';
+// ================================================================================
+
+const COMMENTS_IN = ['Без комментария', 'Опоздание: транспорт', 'Опоздание: личные причины',
+  'Был на выезде по работе', 'Другое…'];
+const COMMENTS_OUT = ['Без комментария', 'По личным делам', 'По болезни', 'По заданию руководителя',
+  'Выезд по работе', 'Другое…'];
+
+const tg = window.Telegram && window.Telegram.WebApp;
+const $ = id => document.getElementById(id);
+let state = null, pos = null, busy = false;
+let map = null, meMarker = null, pointCircle = null, pointMarker = null;
+
+// ---------- Запуск ----------
+if (tg) {
+  tg.ready(); tg.expand();
+  try { tg.setHeaderColor('#f3f5fa'); tg.setBackgroundColor('#f3f5fa'); } catch (e) {}
+}
+fillSelect($('commentIn'), COMMENTS_IN);
+fillSelect($('commentOut'), COMMENTS_OUT);
+start();
+
+async function start() {
+  if (!tg || !tg.initData) return fatal('Откройте табель через бота в Telegram.');
+  try {
+    const r = await api('init');
+    if (!r.ok) return fatal(r.message || 'Нет доступа');
+    applyState(r);
+  } catch (e) {
+    fatal('Нет связи с сервером. Проверьте интернет и откройте табель заново.');
+  }
+}
+
+function fatal(text) { $('vLoading').innerHTML = '<div>' + esc(text) + '</div>'; show('vLoading'); }
+function show(id) { ['vLoading', 'vReg', 'vMain'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
+
+// ---------- Связь с сервером ----------
+async function api(action, data) {
+  const res = await fetch(API_URL, {
+    method: 'POST',  // text/plain: без предварительного CORS-запроса
+    body: JSON.stringify(Object.assign({ action: action, initData: tg ? tg.initData : '' }, data || {}))
+  });
+  return res.json();
+}
+
+// ---------- Состояние ----------
+function applyState(r) {
+  state = r;
+  if (!r.registered) return showReg(r);
+  show('vMain');
+  $('userName').textContent = r.user.name;
+  $('avatar').textContent = (r.user.name.trim()[0] || '?').toUpperCase();
+  $('pointName').textContent = r.point ? r.point.name : r.user.point + ' — координаты не заданы';
+  renderButtons();
+  initMap();
+  if (!pos) refreshLocation();
+  else renderDistance();
+}
+
+function showReg(r) {
+  show('vReg');
+  $('regName').value = $('regName').value || r.suggestedName || '';
+  const sel = $('regPoint');
+  sel.innerHTML = '<option value="">— выберите —</option>' +
+    r.points.map(p => '<option>' + esc(p) + '</option>').join('');
+  if (!r.points.length) toast('Рабочие места ещё не настроены. Обратитесь к администратору.', 'err');
+}
+
+$('regBtn').onclick = async () => {
+  const name = $('regName').value.trim(), point = $('regPoint').value;
+  if (name.length < 3) return toast('Введите фамилию и имя', 'err');
+  if (!point) return toast('Выберите рабочее место', 'err');
+  $('regBtn').disabled = true;
+  try {
+    const r = await api('register', { name: name, point: point });
+    if (!r.ok) return toast(r.message, 'err');
+    haptic('success');
+    applyState(r);
+  } catch (e) { toast('Нет связи с сервером', 'err'); }
+  finally { $('regBtn').disabled = false; }
+};
+
+function renderButtons() {
+  const s = state.shift, inB = $('btnIn'), outB = $('btnOut');
+  inB.className = 'card act'; outB.className = 'card act';
+  if (s.open) {
+    inB.disabled = true; inB.classList.add('done'); $('inSub').textContent = 'Отмечено в ' + s.inTime;
+    outB.disabled = false; outB.classList.add('ready'); $('outSub').textContent = 'Нажмите для отметки';
+  } else if (s.closedToday) {
+    inB.disabled = true; inB.classList.add('done'); $('inSub').textContent = 'Отмечено в ' + s.inToday;
+    outB.disabled = true; outB.classList.add('done'); $('outSub').textContent = 'Отмечено в ' + s.outTime;
+  } else {
+    inB.disabled = false; inB.classList.add('ready'); $('inSub').textContent = 'Нажмите для отметки';
+    outB.disabled = true; $('outSub').textContent = 'Сначала начните';
+  }
+  $('commentIn').disabled = inB.disabled;
+  $('commentOut').disabled = outB.disabled;
+  if (inB.disabled) $('otherIn').classList.add('hidden');
+  if (outB.disabled) $('otherOut').classList.add('hidden');
+
+  const end = state.point ? state.point.end : '';
+  $('todayInfo').textContent = s.closedToday ? 'Смена на сегодня закрыта. Хорошего отдыха!' :
+    (end ? 'Рабочий день до ' + end : '');
+}
+
+// ---------- Карта и геолокация ----------
+function initMap() {
+  if (map || !window.L) return;
+  const p = state.point;
+  const center = p ? [p.lat, p.lon] : [38.56, 68.78];
+  map = L.map('map', { zoomControl: false, attributionControl: true }).setView(center, 17);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '© OpenStreetMap'
+  }).addTo(map);
+  if (p) {
+    pointCircle = L.circle(center, { radius: p.radius, color: '#2f6df6', weight: 1, fillOpacity: .08 }).addTo(map);
+    pointMarker = L.circleMarker(center, { radius: 5, color: '#7a3cf0', fillOpacity: 1 }).addTo(map);
+  }
+}
+
+function getLocation() {
+  return new Promise((resolve, reject) => {
+    const viaBrowser = () => {
+      if (!navigator.geolocation) return reject(new Error('Геолокация недоступна на этом устройстве'));
+      navigator.geolocation.getCurrentPosition(
+        p => resolve({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy || 0 }),
+        e => reject(new Error(e.code === 1 ? 'Нет доступа к геолокации. Разрешите доступ для Telegram.'
+          : 'Не удалось определить местоположение. Включите GPS.')),
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+    };
+    const LM = tg && tg.LocationManager;
+    if (!LM || !tg.isVersionAtLeast || !tg.isVersionAtLeast('8.0')) return viaBrowser();
+    const go = () => {
+      if (!LM.isLocationAvailable) return viaBrowser();
+      LM.getLocation(d => {
+        if (d) return resolve({ lat: d.latitude, lon: d.longitude, acc: d.horizontal_accuracy || 0 });
+        if (LM.isAccessRequested && !LM.isAccessGranted) {
+          tg.showConfirm('Нет доступа к геолокации. Открыть настройки, чтобы разрешить?', ok => {
+            if (ok) LM.openSettings();
+          });
+          return reject(new Error('Нет доступа к геолокации'));
+        }
+        reject(new Error('Не удалось определить местоположение. Включите GPS.'));
+      });
+    };
+    LM.isInited ? go() : LM.init(go);
+  });
+}
+
+async function refreshLocation() {
+  const btn = $('refreshBtn');
+  btn.classList.add('spin');
+  setStatus('wait', 'Определяем местоположение…');
+  try {
+    pos = await getLocation();
+    renderDistance();
+    return pos;
+  } catch (e) {
+    setStatus('bad', e.message);
+    throw e;
+  } finally {
+    btn.classList.remove('spin');
+  }
+}
+
+function renderDistance() {
+  if (!pos) return;
+  const ll = [pos.lat, pos.lon], p = state.point;
+  if (map) {  // карта может не загрузиться при плохом интернете — отметка работает и без неё
+    const icon = L.divIcon({ className: '', html: '<div class="me-dot"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
+    if (meMarker) meMarker.setLatLng(ll); else meMarker = L.marker(ll, { icon: icon }).addTo(map);
+  }
+  if (!p) { if (map) map.setView(ll, 17); return setStatus('bad', 'Координаты точки не заданы'); }
+  const d = Math.round(distance(pos.lat, pos.lon, p.lat, p.lon));
+  if (d <= p.radius) {
+    setStatus('ok', '● На месте · ' + fmtDist(d));
+    if (map) map.setView([p.lat, p.lon], 17);
+  } else {
+    setStatus('bad', '● Вне точки · ' + fmtDist(d));
+    if (map) map.fitBounds(L.latLngBounds([ll, [p.lat, p.lon]]), { padding: [40, 40], maxZoom: 17 });
+  }
+  if (pos.acc > 100) setStatus('bad', 'Низкая точность GPS ±' + Math.round(pos.acc) + ' м');
+}
+
+function setStatus(kind, text) { const s = $('geoStatus'); s.className = 'status ' + kind; s.textContent = text; }
+
+$('refreshBtn').onclick = () => refreshLocation().catch(() => {});
+
+// ---------- Отметка ----------
+$('btnIn').onclick = () => markAction('in');
+$('btnOut').onclick = () => {
+  const now = new Date().toTimeString().slice(0, 5);
+  if (tg && tg.showConfirm) tg.showConfirm('Завершить рабочий день в ' + now + '?', ok => { if (ok) markAction('out'); });
+  else markAction('out');
+};
+
+async function markAction(kind) {
+  if (busy) return;
+  const comment = commentValue(kind);
+  if (comment === null) return toast('Напишите комментарий', 'err');
+  busy = true;
+  const btn = kind === 'in' ? $('btnIn') : $('btnOut');
+  const ico = btn.querySelector('.ico'), icoHtml = ico.innerHTML;
+  ico.innerHTML = '<div class="loader"></div>';
+  try {
+    const loc = await refreshLocation();
+    const r = await api(kind === 'in' ? 'checkin' : 'checkout',
+      { lat: loc.lat, lon: loc.lon, acc: loc.acc, comment: comment });
+    if (r.ok) {
+      haptic('success');
+      toast(r.message, 'ok');
+      resetComment(kind);
+      applyState(r);
+    } else {
+      haptic('error');
+      toast(r.message || 'Ошибка', 'err');
+      if (r.error === 'need_comment') {
+        $('selOutWrap').classList.add('need');
+        $('commentOut').focus();
+      }
+    }
+  } catch (e) {
+    haptic('error');
+    if (e && e.message && !/fetch/i.test(e.message)) toast(e.message, 'err');
+    else toast('Нет связи с сервером. Попробуйте ещё раз.', 'err');
+  } finally {
+    ico.innerHTML = icoHtml;
+    busy = false;
+  }
+}
+
+// ---------- Комментарии ----------
+function fillSelect(sel, list) { sel.innerHTML = list.map(t => '<option>' + esc(t) + '</option>').join(''); }
+$('commentIn').onchange = () => $('otherIn').classList.toggle('hidden', $('commentIn').value !== 'Другое…');
+$('commentOut').onchange = () => {
+  $('selOutWrap').classList.remove('need');
+  $('otherOut').classList.toggle('hidden', $('commentOut').value !== 'Другое…');
+};
+function commentValue(kind) {
+  const sel = kind === 'in' ? $('commentIn') : $('commentOut');
+  const other = kind === 'in' ? $('otherIn') : $('otherOut');
+  if (sel.selectedIndex === 0) return '';
+  if (sel.value === 'Другое…') return other.value.trim() || null;
+  return sel.value;
+}
+function resetComment(kind) {
+  const sel = kind === 'in' ? $('commentIn') : $('commentOut');
+  sel.selectedIndex = 0; sel.onchange();
+  (kind === 'in' ? $('otherIn') : $('otherOut')).value = '';
+}
+
+// ---------- История ----------
+$('histBtn').onclick = async () => {
+  openSheet('histSheet');
+  $('histList').innerHTML = '<div class="empty">Загрузка…</div>';
+  try {
+    const r = await api('history');
+    if (!r.ok) throw new Error(r.message);
+    let html = '';
+    if (r.leaves && r.leaves.length) {
+      html += '<h4>Отпрашивания</h4>' + r.leaves.map(l => {
+        const cls = /одобр|соглас/i.test(l.status) ? 'ok' : /отказ|отклон/i.test(l.status) ? '' : 'wait';
+        return '<div class="item"><div><div class="d">' + esc(l.from === l.to ? l.from : l.from + ' — ' + l.to) +
+          '</div><div class="t">' + esc(l.reason) + '</div></div><div><span class="tag ' + cls + '">' +
+          esc(l.status) + '</span></div></div>';
+      }).join('') + '<h4>Смены</h4>';
+    }
+    html += r.items.length ? r.items.map(i => {
+      const notes = [i.commentIn, i.commentOut].filter(Boolean).join(' · ');
+      return '<div class="item"><div><div class="d">' + esc(i.date) + (i.early ? '<span class="tag">ранний уход</span>' : '') +
+        '</div><div class="t">' + esc(i.in) + ' – ' + esc(i.out || '…') + (notes ? ' · ' + esc(notes) : '') +
+        '</div></div><div class="h">' + (i.hours !== null ? fmtHours(i.hours) : '—') + '</div></div>';
+    }).join('') : '<div class="empty">Отметок пока нет</div>';
+    $('histList').innerHTML = html;
+  } catch (e) {
+    $('histList').innerHTML = '<div class="empty">Не удалось загрузить историю</div>';
+  }
+};
+
+// ---------- Отпрашивание ----------
+$('leaveBtn').onclick = () => {
+  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  if (!$('lvFrom').value) $('lvFrom').value = today;
+  if (!$('lvTo').value) $('lvTo').value = today;
+  openSheet('leaveSheet');
+};
+$('lvReason').onchange = () => $('lvOther').classList.toggle('hidden', $('lvReason').value !== 'other');
+$('lvSend').onclick = async () => {
+  const reason = $('lvReason').value === 'other' ? $('lvOther').value.trim() : $('lvReason').value;
+  if (!reason) return toast('Укажите причину', 'err');
+  if ($('lvTo').value < $('lvFrom').value) return toast('Дата «по» раньше даты «с»', 'err');
+  $('lvSend').disabled = true;
+  try {
+    const r = await api('leave', { from: $('lvFrom').value, to: $('lvTo').value, reason: reason });
+    if (!r.ok) return toast(r.message, 'err');
+    haptic('success');
+    toast(r.message, 'ok');
+    closeSheets();
+    $('lvOther').value = '';
+  } catch (e) { toast('Нет связи с сервером', 'err'); }
+  finally { $('lvSend').disabled = false; }
+};
+
+// ---------- Шторки, уведомления, утилиты ----------
+function openSheet(id) {
+  $(id).classList.remove('hidden');
+  if (tg && tg.BackButton) { tg.BackButton.show(); tg.BackButton.onClick(closeSheets); }
+}
+function closeSheets() {
+  ['histSheet', 'leaveSheet'].forEach(id => $(id).classList.add('hidden'));
+  if (tg && tg.BackButton) { tg.BackButton.offClick(closeSheets); tg.BackButton.hide(); }
+}
+document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) closeSheets(); }));
+
+let toastTimer;
+function toast(text, kind) {
+  const t = $('toast');
+  t.textContent = text; t.className = 'toast ' + (kind || '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add('off'), 3800);
+}
+function haptic(type) { try { tg.HapticFeedback.notificationOccurred(type); } catch (e) {} }
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function fmtDist(m) { return m >= 1000 ? (m / 1000).toFixed(1).replace('.', ',') + ' км' : m + ' м'; }
+function fmtHours(h) { const m = Math.round(h * 60); return Math.floor(m / 60) + ' ч ' + String(m % 60).padStart(2, '0') + ' м'; }
+function distance(lat1, lon1, lat2, lon2) {
+  const R = 6371000, rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad, dLon = (lon2 - lon1) * rad;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+</script>
+</body>
+</html>
