@@ -37,7 +37,7 @@
   .pill { position: absolute; z-index: 5; top: 12px; left: 12px; right: 12px; text-align: center;
     background: rgba(255,255,255,.94); border-radius: 999px; padding: 7px 12px; font-size: 13px; font-weight: 600;
     box-shadow: 0 1px 6px rgba(0,0,0,.08); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .status { position: absolute; z-index: 5; left: 12px; bottom: 12px; border-radius: 999px; padding: 7px 12px;
+  .status { position: absolute; z-index: 5; left: 12px; bottom: 12px; cursor: pointer; border-radius: 999px; padding: 7px 12px;
     font-size: 13px; font-weight: 600; background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.1); max-width: 70%; }
   .status.ok { color: var(--ok); } .status.bad { color: var(--bad); } .status.wait { color: var(--muted); }
   .refresh { position: absolute; z-index: 5; right: 12px; bottom: 12px; width: 56px; height: 56px;
@@ -186,6 +186,7 @@
 
     <button class="wide-btn" id="leaveBtn">Отпрашивание</button>
     <div class="today" id="todayInfo"></div>
+    <div class="today" style="font-size:11px;margin-top:6px;opacity:.6">версия <span id="ver"></span></div>
   </div>
 </div>
 
@@ -237,13 +238,17 @@ const COMMENTS_OUT = ['Без комментария', 'По личным дел
 const tg = window.Telegram && window.Telegram.WebApp;
 const $ = id => document.getElementById(id);
 let state = null, pos = null, busy = false;
-let map = null, meMarker = null, pointCircle = null, pointMarker = null;
+let map = null, meMarker = null, accCircle = null, pointLayer = null, refining = false;
+const GOOD_ACC = 25;  // точность, при которой перестаём уточнять, метров
+const APP_VERSION = '5';
+let refreshing = false, lastRefresh = 0;
 
 // ---------- Запуск ----------
 if (tg) {
   tg.ready(); tg.expand();
   try { tg.setHeaderColor('#f3f5fa'); tg.setBackgroundColor('#f3f5fa'); } catch (e) {}
 }
+$('ver').textContent = APP_VERSION;
 fillSelect($('commentIn'), COMMENTS_IN);
 fillSelect($('commentOut'), COMMENTS_OUT);
 start();
@@ -278,9 +283,10 @@ function applyState(r) {
   show('vMain');
   $('userName').textContent = r.user.name;
   $('avatar').textContent = (r.user.name.trim()[0] || '?').toUpperCase();
-  $('pointName').textContent = r.point ? r.point.name : r.user.point + ' — координаты не заданы';
   renderButtons();
   initMap();
+  drawPoints();
+  updatePill();
   if (!pos) refreshLocation();
   else renderDistance();
 }
@@ -326,49 +332,107 @@ function renderButtons() {
   if (inB.disabled) $('otherIn').classList.add('hidden');
   if (outB.disabled) $('otherOut').classList.add('hidden');
 
-  const end = state.point ? state.point.end : '';
+  const tp = targetPoint();
+  const end = tp ? tp.end : '';
   $('todayInfo').textContent = s.closedToday ? 'Смена на сегодня закрыта. Хорошего отдыха!' :
     (end ? 'Рабочий день до ' + end : '');
 }
 
 // ---------- Карта и геолокация ----------
+// Точка, к которой сейчас идёт отметка:
+// при открытой смене — точка прихода, иначе ближайшая из доступных
+function targetPoint() {
+  const pts = state.points || [];
+  if (state.shiftPoint) return pts.find(p => p.name === state.shiftPoint) || null;
+  if (!pts.length) return null;
+  if (!pos) return pts.find(p => p.name === state.user.point) || pts[0];
+  return pts.slice().sort((a, b) => distance(pos.lat, pos.lon, a.lat, a.lon) - distance(pos.lat, pos.lon, b.lat, b.lon))[0];
+}
+
+function updatePill() {
+  const tp = targetPoint(), pts = state.points || [];
+  let t;
+  if (!pts.length) t = 'Точки не настроены';
+  else if (!tp) t = state.shiftPoint + ' — точка не найдена';
+  else if (state.shiftPoint) t = tp.name + ' · смена открыта здесь';
+  else if (pts.length > 1 && pos) t = tp.name + ' · ближайшая';
+  else t = tp.name;
+  $('pointName').textContent = t;
+}
+
 function initMap() {
   if (map || !window.L) return;
-  const p = state.point;
-  const center = p ? [p.lat, p.lon] : [38.56, 68.78];
+  const tp = targetPoint();
+  const center = tp ? [tp.lat, tp.lon] : [38.56, 68.78];
   map = L.map('map', { zoomControl: false, attributionControl: true }).setView(center, 17);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19, attribution: '© OpenStreetMap'
   }).addTo(map);
-  if (p) {
-    pointCircle = L.circle(center, { radius: p.radius, color: '#2f6df6', weight: 1, fillOpacity: .08 }).addTo(map);
-    pointMarker = L.circleMarker(center, { radius: 5, color: '#7a3cf0', fillOpacity: 1 }).addTo(map);
-  }
 }
 
-function getLocation() {
+function drawPoints() {
+  if (!map) return;
+  if (pointLayer) pointLayer.remove();
+  pointLayer = L.layerGroup().addTo(map);
+  const tp = targetPoint();
+  (state.points || []).forEach(p => {
+    const main = tp && p.name === tp.name;
+    L.circle([p.lat, p.lon], { radius: p.radius, color: main ? '#2f6df6' : '#9aa3b5', weight: 1,
+      fillOpacity: main ? .1 : .05 }).addTo(pointLayer);
+    L.circleMarker([p.lat, p.lon], { radius: 5, color: main ? '#7a3cf0' : '#9aa3b5', fillOpacity: 1 })
+      .bindTooltip(p.name).addTo(pointLayer);
+  });
+}
+
+// Сначала GPS телефона (несколько секунд уточняем и берём самую точную отметку),
+// если не получилось — геолокация через Telegram
+function getLocation(onProgress) {
+  return browserLocation(onProgress).catch(e => telegramLocation().catch(() => { throw e; }));
+}
+
+function browserLocation(onProgress) {
   return new Promise((resolve, reject) => {
-    const viaBrowser = () => {
-      if (!navigator.geolocation) return reject(new Error('Геолокация недоступна на этом устройстве'));
-      navigator.geolocation.getCurrentPosition(
-        p => resolve({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy || 0 }),
-        e => reject(new Error(e.code === 1 ? 'Нет доступа к геолокации. Разрешите доступ для Telegram.'
-          : 'Не удалось определить местоположение. Включите GPS.')),
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
-    };
+    if (!navigator.geolocation) return reject(new Error('Геолокация недоступна на этом устройстве'));
+    let best = null, finished = false, id = null;
+    const end = () => { finished = true; if (id !== null) navigator.geolocation.clearWatch(id); clearTimeout(t); };
+    const t = setTimeout(() => {
+      if (finished) return;
+      end();
+      best ? resolve(best) : reject(new Error('Не удалось определить местоположение. Включите GPS.'));
+    }, 15000);
+    id = navigator.geolocation.watchPosition(p => {
+      if (finished) return;
+      if (p.timestamp && Date.now() - p.timestamp > 20000) return;  // старая (кэшированная) отметка — пропускаем
+      const c = { lat: p.coords.latitude, lon: p.coords.longitude, acc: Math.round(p.coords.accuracy || 9999),
+        src: 'GPS телефона', time: Date.now() };
+      if (!best || c.acc < best.acc) { best = c; if (onProgress) onProgress(best); }
+      if (best.acc <= GOOD_ACC) { end(); resolve(best); }
+    }, e => {
+      if (finished) return;
+      if (best) { end(); return resolve(best); }
+      if (e.code === 3) return;  // ждём общий таймер
+      end();
+      reject(new Error(e.code === 1 ? 'Нет доступа к геолокации. Разрешите Telegram доступ к местоположению.'
+        : 'Не удалось определить местоположение. Включите GPS.'));
+    }, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+  });
+}
+
+function telegramLocation() {
+  return new Promise((resolve, reject) => {
     const LM = tg && tg.LocationManager;
-    if (!LM || !tg.isVersionAtLeast || !tg.isVersionAtLeast('8.0')) return viaBrowser();
+    if (!LM || !tg.isVersionAtLeast || !tg.isVersionAtLeast('8.0')) return reject(new Error('нет'));
     const go = () => {
-      if (!LM.isLocationAvailable) return viaBrowser();
+      if (!LM.isLocationAvailable) return reject(new Error('нет'));
       LM.getLocation(d => {
-        if (d) return resolve({ lat: d.latitude, lon: d.longitude, acc: d.horizontal_accuracy || 0 });
+        if (d) return resolve({ lat: d.latitude, lon: d.longitude, acc: Math.round(d.horizontal_accuracy || 0),
+          src: 'Telegram', time: Date.now() });
         if (LM.isAccessRequested && !LM.isAccessGranted) {
           tg.showConfirm('Нет доступа к геолокации. Открыть настройки, чтобы разрешить?', ok => {
             if (ok) LM.openSettings();
           });
-          return reject(new Error('Нет доступа к геолокации'));
         }
-        reject(new Error('Не удалось определить местоположение. Включите GPS.'));
+        reject(new Error('нет'));
       });
     };
     LM.isInited ? go() : LM.init(go);
@@ -376,43 +440,73 @@ function getLocation() {
 }
 
 async function refreshLocation() {
+  if (refreshing) return refreshing;
+  refreshing = doRefresh().finally(() => { refreshing = false; lastRefresh = Date.now(); });
+  return refreshing;
+}
+
+async function doRefresh() {
   const btn = $('refreshBtn');
   btn.classList.add('spin');
   setStatus('wait', 'Определяем местоположение…');
+  refining = true;
   try {
-    pos = await getLocation();
+    pos = await getLocation(c => { pos = c; renderDistance(); });
+    refining = false;
     renderDistance();
     return pos;
   } catch (e) {
     setStatus('bad', e.message);
     throw e;
   } finally {
+    refining = false;
     btn.classList.remove('spin');
   }
 }
 
 function renderDistance() {
   if (!pos) return;
-  const ll = [pos.lat, pos.lon], p = state.point;
+  const ll = [pos.lat, pos.lon], p = targetPoint();
+  updatePill();
+  drawPoints();
+  renderButtons();
   if (map) {  // карта может не загрузиться при плохом интернете — отметка работает и без неё
     const icon = L.divIcon({ className: '', html: '<div class="me-dot"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
     if (meMarker) meMarker.setLatLng(ll); else meMarker = L.marker(ll, { icon: icon }).addTo(map);
+    if (accCircle) accCircle.setLatLng(ll).setRadius(pos.acc);
+    else accCircle = L.circle(ll, { radius: pos.acc, color: '#2f6df6', weight: 0, fillOpacity: .12 }).addTo(map);
   }
-  if (!p) { if (map) map.setView(ll, 17); return setStatus('bad', 'Координаты точки не заданы'); }
+  if (!p) { if (map) map.setView(ll, 17); return setStatus('bad', 'Нет доступных точек'); }
   const d = Math.round(distance(pos.lat, pos.lon, p.lat, p.lon));
+  const accTxt = ' (±' + pos.acc + ' м)' + (refining ? ' · уточняем…' : '');
   if (d <= p.radius) {
-    setStatus('ok', '● На месте · ' + fmtDist(d));
+    setStatus('ok', '● На месте · ' + fmtDist(d) + accTxt);
     if (map) map.setView([p.lat, p.lon], 17);
   } else {
-    setStatus('bad', '● Вне точки · ' + fmtDist(d));
+    setStatus(refining ? 'wait' : 'bad', '● Вне точки · ' + fmtDist(d) + accTxt);
     if (map) map.fitBounds(L.latLngBounds([ll, [p.lat, p.lon]]), { padding: [40, 40], maxZoom: 17 });
   }
-  if (pos.acc > 100) setStatus('bad', 'Низкая точность GPS ±' + Math.round(pos.acc) + ' м');
+  if (pos.acc > 100) setStatus(refining ? 'wait' : 'bad', 'Низкая точность ±' + fmtDist(pos.acc) +
+    (refining ? ' · уточняем…' : ' · включите точную геолокацию'));
 }
 
 function setStatus(kind, text) { const s = $('geoStatus'); s.className = 'status ' + kind; s.textContent = text; }
 
 $('refreshBtn').onclick = () => refreshLocation().catch(() => {});
+
+// Обновляем местоположение, когда приложение снова открыли, и раз в минуту, пока оно на экране
+function autoRefresh() {
+  if (!state || !state.registered || busy || document.hidden) return;
+  if (Date.now() - lastRefresh < 10000) return;
+  refreshLocation().catch(() => {});
+}
+document.addEventListener('visibilitychange', autoRefresh);
+if (tg && tg.onEvent) tg.onEvent('activated', autoRefresh);
+setInterval(autoRefresh, 60000);
+$('geoStatus').onclick = () => {
+  if (!pos) return;
+  toast('Ваши координаты: ' + pos.lat.toFixed(6) + ', ' + pos.lon.toFixed(6) + ' (±' + pos.acc + ' м, ' + pos.src + ')');
+};
 
 // ---------- Отметка ----------
 $('btnIn').onclick = () => markAction('in');
@@ -431,7 +525,7 @@ async function markAction(kind) {
   const ico = btn.querySelector('.ico'), icoHtml = ico.innerHTML;
   ico.innerHTML = '<div class="loader"></div>';
   try {
-    const loc = await refreshLocation();
+    const loc = await refreshLocation();  // всегда свежие координаты в момент отметки
     const r = await api(kind === 'in' ? 'checkin' : 'checkout',
       { lat: loc.lat, lon: loc.lon, acc: loc.acc, comment: comment });
     if (r.ok) {
@@ -496,7 +590,7 @@ $('histBtn').onclick = async () => {
     html += r.items.length ? r.items.map(i => {
       const notes = [i.commentIn, i.commentOut].filter(Boolean).join(' · ');
       return '<div class="item"><div><div class="d">' + esc(i.date) + (i.early ? '<span class="tag">ранний уход</span>' : '') +
-        '</div><div class="t">' + esc(i.in) + ' – ' + esc(i.out || '…') + (notes ? ' · ' + esc(notes) : '') +
+        '</div><div class="t">' + esc(i.point) + ' · ' + esc(i.in) + ' – ' + esc(i.out || '…') + (notes ? ' · ' + esc(notes) : '') +
         '</div></div><div class="h">' + (i.hours !== null ? fmtHours(i.hours) : '—') + '</div></div>';
     }).join('') : '<div class="empty">Отметок пока нет</div>';
     $('histList').innerHTML = html;
