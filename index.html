@@ -1,886 +1,363 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Табель</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Магазин СТТ демо</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #f3f5fa; --card: #ffffff; --text: #1b2232; --muted: #8a93a6; --line: #e7eaf1;
-    --accent: #2f6df6; --accent-soft: #eaf0ff; --ok: #1f9d55; --ok-soft: #e6f6ec;
-    --bad: #d93a3a; --bad-soft: #fdecec; --radius: 22px;
-  }
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; background: var(--bg); color: var(--text);
-    font: 15px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
-  .wrap { max-width: 480px; margin: 0 auto; padding: 14px 14px 28px; }
-  .hidden { display: none !important; }
-  .card { background: var(--card); border-radius: var(--radius); box-shadow: 0 1px 10px rgba(27, 34, 50, .05); }
-
-  /* Шапка */
-  .head { display: flex; align-items: center; gap: 12px; padding: 14px 14px 14px 16px; }
-  .avatar { width: 48px; height: 48px; border-radius: 50%; background: var(--accent); color: #fff;
-    display: grid; place-items: center; font-weight: 700; font-size: 19px; flex: none; }
-  .hello { flex: 1; min-width: 0; }
-  .hello small { color: var(--muted); font-size: 13px; }
-  .hello b { display: block; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .round-btn { width: 46px; height: 46px; border-radius: 50%; border: 0; background: #f1f3f8; color: var(--text);
-    display: grid; place-items: center; cursor: pointer; flex: none; }
-  .round-btn svg { width: 22px; height: 22px; }
-
-  /* Карта */
-  .map-card { position: relative; height: 220px; margin-top: 12px; overflow: hidden; }
-  #map { position: absolute; inset: 0; z-index: 1; background: #e9edf3; }
-  .pill { position: absolute; z-index: 5; top: 12px; left: 12px; right: 12px; text-align: center;
-    background: rgba(255,255,255,.94); border-radius: 999px; padding: 7px 12px; font-size: 13px; font-weight: 600;
-    box-shadow: 0 1px 6px rgba(0,0,0,.08); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .status { position: absolute; z-index: 5; left: 12px; bottom: 12px; cursor: pointer; border-radius: 999px; padding: 7px 12px;
-    font-size: 13px; font-weight: 600; background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.1); max-width: 70%; }
-  .status.ok { color: var(--ok); } .status.bad { color: var(--bad); } .status.wait { color: var(--muted); }
-  .refresh { position: absolute; z-index: 5; right: 12px; bottom: 12px; width: 56px; height: 56px;
-    border-radius: 50%; border: 0; background: #fff; color: var(--accent); box-shadow: 0 2px 10px rgba(0,0,0,.14);
-    display: grid; place-items: center; cursor: pointer; }
-  .refresh svg { width: 26px; height: 26px; }
-  .spin svg { animation: spin 1s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .me-dot { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 3px solid #fff;
-    box-shadow: 0 0 0 8px rgba(47,109,246,.18); }
-  .leaflet-control-attribution { font-size: 9px; }
-
-  /* Кнопки отметки */
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
-  .act { border: 0; text-align: left; padding: 16px; min-height: 160px; display: flex; flex-direction: column;
-    justify-content: space-between; cursor: pointer; color: var(--text); font: inherit; transition: transform .1s; }
-  .act:active:not(:disabled) { transform: scale(.97); }
-  .act:disabled { cursor: default; opacity: .5; }
-  .act.done:disabled { opacity: .9; }
-  .act .ico { width: 44px; height: 44px; border-radius: 50%; background: #f1f3f8; display: grid; place-items: center; }
-  .act .ico svg { width: 22px; height: 22px; }
-  .act.ready .ico { background: var(--accent-soft); color: var(--accent); }
-  .act.done .ico { background: var(--ok-soft); color: var(--ok); }
-  .act b { display: block; font-size: 17px; margin-top: 14px; }
-  .act small { display: block; color: var(--muted); font-size: 13px; margin-top: 3px; }
-  .act.done small { color: var(--ok); }
-  .loader { width: 20px; height: 20px; border-radius: 50%; border: 3px solid var(--accent-soft);
-    border-top-color: var(--accent); animation: spin .8s linear infinite; }
-
-  /* Комментарии */
-  .sel { position: relative; }
-  .sel select { width: 100%; appearance: none; -webkit-appearance: none; border: 0; border-radius: 18px;
-    background: var(--card); padding: 14px 34px 14px 16px; font-family: inherit; font-size: 14px; font-weight: 600;
-    color: var(--text); box-shadow: 0 1px 10px rgba(27,34,50,.05); }
-  .sel select:disabled { color: var(--muted); }
-  .sel::after { content: ""; position: absolute; right: 16px; top: 50%; width: 7px; height: 7px; margin-top: -6px;
-    border: solid var(--muted); border-width: 0 2px 2px 0; transform: rotate(45deg); pointer-events: none; }
-  .sel.need select { box-shadow: 0 0 0 2px var(--bad); }
-  .other { width: 100%; margin-top: 8px; border: 1px solid var(--line); border-radius: 14px; padding: 11px 13px;
-    font: inherit; background: #fff; }
-
-  .wide-btn { width: 100%; margin-top: 14px; padding: 16px; border-radius: 18px; border: 1px solid #c9d8fd;
-    background: linear-gradient(#f2f6ff, #e6edff); color: #1d3f9a; font-family: inherit; font-size: 15px; font-weight: 700;
-    cursor: pointer; }
-  .today { text-align: center; color: var(--muted); font-size: 13px; margin-top: 14px; }
-
-  /* Регистрация и формы */
-  .form { padding: 20px; margin-top: 12px; }
-  .form h2 { margin: 0 0 4px; font-size: 20px; }
-  .form p { margin: 0 0 16px; color: var(--muted); }
-  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 6px; }
-  .input { width: 100%; border: 1px solid var(--line); border-radius: 14px; padding: 13px 14px; font: inherit;
-    background: #fff; color: var(--text); }
-  .primary { width: 100%; margin-top: 18px; padding: 15px; border: 0; border-radius: 16px; background: var(--accent);
-    color: #fff; font-family: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }
-  .primary:disabled { opacity: .6; }
-  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-
-  /* Нижняя шторка */
-  .overlay { position: fixed; inset: 0; z-index: 50; background: rgba(15, 20, 35, .4); display: flex; align-items: flex-end; }
-  .sheet { width: 100%; max-width: 480px; margin: 0 auto; max-height: 86vh; overflow: auto; background: var(--bg);
-    border-radius: 24px 24px 0 0; padding: 10px 14px 24px; animation: up .2s ease-out; }
-  @keyframes up { from { transform: translateY(40px); opacity: .6; } }
-  .grab { width: 40px; height: 5px; border-radius: 3px; background: #cfd4df; margin: 0 auto 10px; }
-  .sheet h3 { margin: 6px 4px 12px; font-size: 18px; }
-  .sheet h4 { margin: 18px 4px 8px; font-size: 14px; color: var(--muted); font-weight: 600; }
-  .item { display: flex; justify-content: space-between; gap: 10px; padding: 12px 14px; border-radius: 16px;
-    background: var(--card); margin-bottom: 8px; }
-  .item .d { font-weight: 700; }
-  .item .t { color: var(--muted); font-size: 13px; margin-top: 2px; }
-  .item .h { font-weight: 700; white-space: nowrap; }
-  .tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
-    background: var(--bad-soft); color: var(--bad); margin-left: 6px; }
-  .tag.ok { background: var(--ok-soft); color: var(--ok); }
-  .tag.wait { background: #fff4dd; color: #a36a00; }
-  .empty { text-align: center; color: var(--muted); padding: 24px 0; }
-
-  .toast { position: fixed; z-index: 100; left: 14px; right: 14px; bottom: 20px; max-width: 452px; margin: 0 auto;
-    padding: 14px 16px; border-radius: 16px; color: #fff; background: #1b2232; font-weight: 600;
-    box-shadow: 0 6px 24px rgba(0,0,0,.2); transition: opacity .2s, transform .2s; }
-  .toast.ok { background: var(--ok); } .toast.err { background: var(--bad); }
-  .toast.off { opacity: 0; transform: translateY(12px); pointer-events: none; }
-
-  /* Супервайзер и инкассация */
-  .box { padding: 16px; margin-top: 12px; }
-  .box-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
-  .box-h b { font-size: 16px; }
-  .link { border: 0; background: none; color: var(--accent); font-family: inherit; font-size: 14px; font-weight: 600;
-    cursor: pointer; padding: 4px 0; }
-  .muted { color: var(--muted); font-size: 14px; }
-  .rp { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); }
-  .rp:first-child { border-top: 0; }
-  .rp .dot { width: 22px; height: 22px; border-radius: 50%; flex: none; display: grid; place-items: center;
-    font-size: 12px; font-weight: 700; background: #eef0f5; color: var(--muted); }
-  .rp .dot.v { background: var(--ok-soft); color: var(--ok); }
-  .rp .dot.now { background: var(--accent); color: #fff; }
-  .rp .nm { flex: 1; min-width: 0; font-weight: 600; }
-  .rp .nm small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
-  .rp .sum { font-weight: 700; white-space: nowrap; font-size: 14px; }
-  .here { font-size: 18px; font-weight: 700; }
-  .ink-row { display: flex; gap: 8px; margin-top: 12px; }
-  .ink-row .input { flex: 1; }
-  .btn2 { border: 0; border-radius: 14px; padding: 0 16px; background: var(--accent); color: #fff;
-    font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer; }
-  .btn2.ghost { background: #eef1f7; color: var(--text); }
-  .btn2:disabled { opacity: .6; }
-  .full { width: 100%; padding: 15px; margin-top: 12px; }
-  .pend { padding: 16px; margin-top: 12px; border: 2px solid #ffcf66; }
-  .pend .amt { font-size: 22px; font-weight: 800; margin: 4px 0 2px; }
-  .pend .row2 { margin-top: 12px; }
-  .chk { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--card);
-    border-radius: 14px; margin-bottom: 8px; cursor: pointer; }
-  .chk input { width: 20px; height: 20px; accent-color: var(--accent); }
-  .chk span { flex: 1; font-weight: 600; }
-  .chk small { color: var(--muted); }
-  .sheet-foot { position: sticky; bottom: -24px; background: var(--bg); padding: 8px 0 4px; }
-
-  .center { min-height: 70vh; display: grid; place-items: center; text-align: center; color: var(--muted); padding: 20px; }
+/* VOICE everyday shopping app, looks like a shipped product
+   IDEA a store shelf that only shows what is on this point's shelf today
+   PICTURE the product grid itself, with the chosen point as a bold header bar
+   COLOUR white ground, ink, orange #ff5a1f accent for prices and actions, soft greys
+   TYPE Golos Text (built for Cyrillic) for everything, weights for hierarchy
+   LAYOUT phone-first single column; at 720px+ grid widens to 3–4 columns, sheets stay centred */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#121316);--ink:light-dark(#16181d,#eef0f4);--mut:light-dark(#6b7280,#9aa1ad);--surf:light-dark(#f3f4f6,#1d1f24);--line:light-dark(#e6e8ec,#2a2d33);--acc:#ff5a1f;--acc-ink:#fff;--ok:light-dark(#18864b,#4cc785);--ok-bg:light-dark(#e7f6ee,#173324);--warn:light-dark(#a35b00,#f0b45a);--warn-bg:light-dark(#fff3e0,#3a2a12)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font:16px/1.45 "Golos Text",-apple-system,"Segoe UI",Roboto,Arial,sans-serif;overflow-x:clip}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:1000px;margin:0 auto;padding:0 16px 120px}
+.top{position:sticky;top:0;z-index:20;background:var(--bg);padding:12px 0 10px;border-bottom:1px solid var(--line)}
+.pointbtn{width:100%;display:flex;align-items:center;gap:12px;border:0;background:var(--acc);color:var(--acc-ink);border-radius:18px;padding:12px 14px;text-align:left;cursor:pointer}
+.pointbtn svg{flex:none;width:26px;height:26px}
+.pointbtn b{display:block;font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pointbtn small{display:block;font-size:13px;opacity:.92}
+.pointbtn .chev{margin-left:auto;font-size:13px;font-weight:600;background:rgba(255,255,255,.2);border-radius:999px;padding:5px 10px;white-space:nowrap}
+.search{margin-top:10px;width:100%;border:1px solid var(--line);background:var(--surf);border-radius:14px;padding:12px 14px;font-size:16px}
+.cats{display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
+.cats::-webkit-scrollbar{display:none}
+.cat{flex:none;border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+.cat[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.note{color:var(--mut);font-size:13px;margin:12px 0 10px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media(min-width:620px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(min-width:880px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.card{background:var(--surf);border-radius:18px;padding:10px;display:flex;flex-direction:column;gap:6px}
+.pic{aspect-ratio:5/3;border-radius:13px;position:relative}
+.pic svg{position:absolute;left:30%;top:12%;width:40%;height:76%}
+.price{font-size:18px;font-weight:800;white-space:nowrap}
+.name{font-size:14px;line-height:1.3;font-weight:500}
+.unit{font-size:13px;color:var(--mut)}
+.left{font-size:12px;font-weight:600;color:var(--warn);background:var(--warn-bg);border-radius:6px;padding:2px 6px;align-self:flex-start}
+.add{margin-top:auto;border:0;background:var(--bg);border-radius:12px;height:42px;font-weight:700;cursor:pointer;font-size:15px}
+.add:hover{background:var(--acc);color:var(--acc-ink)}
+.step{margin-top:auto;display:flex;align-items:center;justify-content:space-between;background:var(--acc);color:var(--acc-ink);border-radius:12px;height:42px}
+.step button{border:0;background:none;color:inherit;width:44px;height:42px;font-size:22px;font-weight:700;cursor:pointer}
+.step span{font-weight:700;white-space:nowrap}
+.empty{text-align:center;color:var(--mut);padding:40px 10px}
+.cartbar{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:10px 16px calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(transparent,var(--bg) 30%)}
+.cartbar button{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:968px;margin:0 auto;border:0;background:var(--acc);color:var(--acc-ink);border-radius:16px;padding:16px 18px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 8px 24px rgba(255,90,31,.3)}
+.overlay{position:fixed;inset:0;z-index:50;background:rgba(10,12,16,.45);display:flex;align-items:flex-end;justify-content:center}
+.sheet{width:100%;max-width:560px;max-height:90vh;overflow:auto;background:var(--bg);border-radius:22px 22px 0 0;padding:8px 16px calc(20px + env(safe-area-inset-bottom,0px));animation:up .22s ease-out}
+@media(prefers-reduced-motion:reduce){.sheet{animation:none}}
+@keyframes up{from{transform:translateY(30px);opacity:.5}}
+.grab{width:40px;height:5px;border-radius:3px;background:var(--line);margin:4px auto 12px}
+.sheet h2{font-size:22px;line-height:1.1;margin:0 0 12px;letter-spacing:-.02em}
+.pt{display:flex;gap:12px;align-items:flex-start;width:100%;border:1px solid var(--line);background:var(--bg);border-radius:16px;padding:12px 14px;margin-bottom:8px;text-align:left;cursor:pointer}
+.pt[aria-current=true]{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+.pt b{display:block;font-weight:700}
+.pt small{display:block;color:var(--mut);font-size:13px}
+.pt .tags{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:12px;font-weight:600;border-radius:6px;padding:2px 7px;white-space:nowrap;background:var(--surf);color:var(--mut)}
+.tag.ok{background:var(--ok-bg);color:var(--ok)}
+.line{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.line .mini{width:46px;height:46px;border-radius:10px;flex:none;display:grid;place-items:center}
+.line .mini svg{width:60%;height:70%}
+.line .nm{flex:1;font-size:14px}
+.line .nm small{display:block;color:var(--mut)}
+.qty{display:flex;align-items:center;background:var(--surf);border-radius:10px}
+.qty button{border:0;background:none;width:36px;height:36px;font-size:18px;font-weight:700;cursor:pointer}
+.qty span{min-width:20px;text-align:center;font-weight:700}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--surf);border-radius:14px;padding:4px;margin:16px 0 4px}
+.seg button{border:0;background:none;border-radius:11px;padding:11px;font-weight:600;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--bg);box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.seg button:disabled{opacity:.45;cursor:not-allowed}
+.hint{font-size:13px;color:var(--mut);margin:4px 2px 10px}
+label.f{display:block;font-size:13px;color:var(--mut);margin:12px 0 5px}
+.in{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:12px 13px;font-size:16px}
+.radio{display:flex;gap:8px;flex-wrap:wrap}
+.radio label{flex:1;display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:11px 12px;cursor:pointer;font-size:15px;min-width:9.5em}
+.radio input{accent-color:var(--acc)}
+.sum{margin-top:16px;background:var(--surf);border-radius:14px;padding:12px 14px}
+.sum div{display:flex;justify-content:space-between;padding:3px 0;font-size:15px}
+.sum div span:last-child{white-space:nowrap;font-variant-numeric:tabular-nums}
+.sum .tot{font-weight:800;font-size:18px;border-top:1px solid var(--line);margin-top:6px;padding-top:8px}
+.warn{color:var(--warn);font-size:14px;margin-top:8px}
+.big{width:100%;margin-top:16px;border:0;background:var(--acc);color:var(--acc-ink);border-radius:14px;padding:16px;font-size:16px;font-weight:700;cursor:pointer}
+.big:disabled{opacity:.5;cursor:not-allowed}
+.ghost{background:var(--surf);color:var(--ink)}
+.track{margin:14px 0 4px}
+.track div{display:flex;gap:12px;align-items:center;padding:8px 0;color:var(--mut)}
+.track i{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);flex:none;display:grid;place-items:center;font-style:normal;font-size:13px;font-weight:700}
+.track .on{color:var(--ink);font-weight:600}
+.track .on i{background:var(--acc);border-color:var(--acc);color:#fff}
+.toast{position:fixed;left:16px;right:16px;bottom:90px;z-index:60;max-width:520px;margin:0 auto;background:var(--ink);color:var(--bg);border-radius:14px;padding:13px 16px;font-weight:600;font-size:15px;transition:opacity .2s}
+.toast.off{opacity:0;pointer-events:none}
+.demo{font-size:12px;color:var(--mut);text-align:center;margin-top:24px}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-sack" viewBox="0 0 64 64"><path d="M22 10h20l-4 8c10 5 16 15 16 26 0 7-6 12-13 12H23c-7 0-13-5-13-12 0-11 6-21 16-26z" fill="#e7c48a"/><path d="M32 18c10 5 22 15 22 26 0 7-6 12-13 12h-9z" fill="#d4a861"/><path d="M24 18h16" stroke="#9c6b2f" stroke-width="3" stroke-linecap="round"/><ellipse cx="32" cy="40" rx="9" ry="7" fill="#fff" opacity=".7"/></symbol>
+  <symbol id="i-milk" viewBox="0 0 64 64"><path d="M20 20l6-10h12l6 10v36H20z" fill="#fff"/><path d="M32 10h6l6 10v36H32z" fill="#dfe9f5"/><path d="M20 20h24v8H20z" fill="#3b82f6"/><rect x="25" y="34" width="14" height="12" rx="3" fill="#3b82f6" opacity=".25"/><path d="M26 10h12v-4H26z" fill="#3b82f6"/></symbol>
+  <symbol id="i-bottle" viewBox="0 0 64 64"><path d="M27 4h10v8l4 8v34a4 4 0 0 1-4 4H27a4 4 0 0 1-4-4V20l4-8z" fill="#58c4dd"/><path d="M32 4h5v8l4 8v34a4 4 0 0 1-4 4h-5z" fill="#3aa6c2"/><rect x="23" y="28" width="18" height="14" fill="#fff" opacity=".85"/><rect x="27" y="2" width="10" height="5" rx="1" fill="#1f6f86"/></symbol>
+  <symbol id="i-spray" viewBox="0 0 64 64"><path d="M22 22h20v32a4 4 0 0 1-4 4H26a4 4 0 0 1-4-4z" fill="#a78bfa"/><path d="M32 22h10v32a4 4 0 0 1-4 4h-6z" fill="#8b6cf0"/><path d="M26 10h12v12H26z" fill="#4c3a91"/><path d="M38 12h10l-2 5h-8z" fill="#4c3a91"/><rect x="25" y="32" width="14" height="12" rx="2" fill="#fff" opacity=".8"/></symbol>
+  <symbol id="i-candy" viewBox="0 0 64 64"><circle cx="32" cy="32" r="15" fill="#f0a34a"/><path d="M32 17a15 15 0 0 1 0 30z" fill="#d98a2b"/><path d="M17 32l-11-8v16zM47 32l11-8v16z" fill="#f0a34a"/><circle cx="27" cy="27" r="3" fill="#fff" opacity=".6"/></symbol>
+  <symbol id="i-can" viewBox="0 0 64 64"><ellipse cx="32" cy="14" rx="16" ry="5" fill="#c9ced6"/><path d="M16 14v36c0 3 7 5 16 5s16-2 16-5V14c0 3-7 5-16 5s-16-2-16-5z" fill="#e5484d"/><path d="M32 19c9 0 16-2 16-5v36c0 3-7 5-16 5z" fill="#c93a3f"/><rect x="16" y="28" width="32" height="12" fill="#fff" opacity=".85"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 22s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z" fill="currentColor"/><circle cx="12" cy="10" r="2.6" fill="var(--acc)"/></symbol>
+</svg>
+
 <div class="wrap">
-
-  <!-- Загрузка / ошибка -->
-  <div id="vLoading" class="center"><div><div class="loader" style="margin:0 auto 12px"></div>Загрузка…</div></div>
-
-  <!-- Регистрация -->
-  <div id="vReg" class="hidden">
-    <div class="card form">
-      <h2>Регистрация</h2>
-      <p>Один раз укажите свои данные и рабочее место.</p>
-      <label for="regName">Фамилия и имя</label>
-      <input id="regName" class="input" autocomplete="name" placeholder="Например: Иванов Иван">
-      <label for="regPoint">Рабочее место</label>
-      <div class="sel"><select id="regPoint"></select></div>
-      <button id="regBtn" class="primary">Готово</button>
-    </div>
-  </div>
-
-  <!-- Главный экран -->
-  <div id="vMain" class="hidden">
-    <div class="card head">
-      <div class="avatar" id="avatar">?</div>
-      <div class="hello"><small>Добро пожаловать</small><b id="userName"></b></div>
-      <button class="round-btn" id="histBtn" aria-label="История">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
-      </button>
-    </div>
-
-    <div id="pendingBox"></div>
-
-    <div class="card map-card">
-      <div id="map"></div>
-      <div class="pill" id="pointName"></div>
-      <div class="status wait" id="geoStatus">Определяем местоположение…</div>
-      <button class="refresh" id="refreshBtn" aria-label="Обновить местоположение">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg>
-      </button>
-    </div>
-
-    <div class="grid">
-      <button class="card act" id="btnIn">
-        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-        <span><b id="inTitle">Начать работу</b><small id="inSub">Нажмите для отметки</small></span>
-      </button>
-      <button class="card act" id="btnOut">
-        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-        <span><b id="outTitle">Завершить работу</b><small id="outSub">Сначала начните</small></span>
-      </button>
-    </div>
-
-    <div class="grid" style="margin-top:12px">
-      <div>
-        <div class="sel" id="selInWrap"><select id="commentIn"></select></div>
-        <input id="otherIn" class="other hidden" placeholder="Ваш комментарий" maxlength="300">
-      </div>
-      <div>
-        <div class="sel" id="selOutWrap"><select id="commentOut"></select></div>
-        <input id="otherOut" class="other hidden" placeholder="Причина ухода" maxlength="300">
-      </div>
-    </div>
-
-    <div id="supBox" class="hidden">
-      <div class="card box">
-        <div class="box-h"><b>Сейчас</b></div>
-        <div id="visitBody"></div>
-      </div>
-      <div class="card box">
-        <div class="box-h"><b>Маршрут на сегодня</b><button class="link" id="routeEdit">Составить</button></div>
-        <div id="routeBody"></div>
-      </div>
-    </div>
-
-    <button class="wide-btn" id="leaveBtn">Отпрашивание</button>
-    <div class="today" id="todayInfo"></div>
-    <div class="today" style="font-size:11px;margin-top:6px;opacity:.6">версия <span id="ver"></span></div>
-  </div>
+  <header class="top">
+    <button class="pointbtn" id="pointBtn" aria-label="Выбрать точку">
+      <svg aria-hidden="true"><use href="#i-pin"/></svg>
+      <span style="min-width:0"><b id="pointName">Выберите точку</b><small id="pointSub">Покажем товары, которые есть на ней сейчас</small></span>
+      <span class="chev">Сменить</span>
+    </button>
+    <input id="q" class="search" type="search" placeholder="Поиск товаров" autocomplete="off">
+    <nav class="cats" id="cats" aria-label="Категории"></nav>
+  </header>
+  <p class="note" id="note"></p>
+  <main class="grid" id="grid"></main>
+  <p class="demo">Демо-версия: каталог, цены, точки и остатки примерные. В рабочей версии они загружаются из BILLZ.</p>
 </div>
 
-<!-- Маршрут супервайзера -->
-<div class="overlay hidden" id="routeSheet">
-  <div class="sheet">
-    <div class="grab"></div>
-    <h3>Маршрут на сегодня</h3>
-    <p class="muted" style="margin:0 4px 12px">Отметьте точки, которые посетите сегодня. Руководитель получит уведомление.</p>
-    <div id="routeChoices"></div>
-    <div class="sheet-foot"><button class="primary" id="routeSend" style="margin-top:6px">Отправить маршрут</button></div>
-  </div>
-</div>
-
-<!-- История -->
-<div class="overlay hidden" id="histSheet">
-  <div class="sheet">
-    <div class="grab"></div>
-    <h3>Мои отметки</h3>
-    <div id="histList"><div class="empty">Загрузка…</div></div>
-  </div>
-</div>
-
-<!-- Отпрашивание -->
-<div class="overlay hidden" id="leaveSheet">
-  <div class="sheet">
-    <div class="grab"></div>
-    <h3>Отпрашивание</h3>
-    <div class="card form" style="margin-top:0">
-      <div class="row2">
-        <div><label for="lvFrom">С</label><input type="date" id="lvFrom" class="input"></div>
-        <div><label for="lvTo">По</label><input type="date" id="lvTo" class="input"></div>
-      </div>
-      <label for="lvReason">Причина</label>
-      <div class="sel"><select id="lvReason">
-        <option>Семейные обстоятельства</option>
-        <option>Болезнь</option>
-        <option>Отпуск за свой счёт</option>
-        <option>Учёба</option>
-        <option value="other">Другое…</option>
-      </select></div>
-      <input id="lvOther" class="other hidden" placeholder="Опишите причину" maxlength="300">
-      <button id="lvSend" class="primary">Отправить руководителю</button>
-    </div>
-  </div>
-</div>
-
-<div class="toast off" id="toast"></div>
+<div class="cartbar" id="cartBar" hidden><button id="cartBtn"><span id="cartCount"></span><span id="cartSum"></span></button></div>
+<div class="overlay" id="ov" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<div class="toast off" id="toast" role="status"></div>
 
 <script>
-// ===== НАСТРОЙКА: адрес веб-приложения Apps Script (заканчивается на /exec) =====
-const API_URL = 'https://script.google.com/macros/s/AKfycbzA1ezzznz-9pyycxZEJyk_b2sRZ8nXiyAb_paofCfGFVanE-yvreudB-GtE4rkDN2w/exec';
-// ================================================================================
+{
+const tg = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData !== undefined ? window.Telegram.WebApp : null;
+if (tg) { try { tg.ready(); tg.expand(); } catch (e) {} }
 
-const COMMENTS_IN = ['Без комментария', 'Опоздание: транспорт', 'Опоздание: личные причины',
-  'Был на выезде по работе', 'Другое…'];
-const COMMENTS_OUT = ['Без комментария', 'По личным делам', 'По болезни', 'По заданию руководителя',
-  'Выезд по работе', 'Другое…'];
+// ---------- Примерные данные (в рабочей версии — из BILLZ API) ----------
+const CATS = [
+  { id: 'bak', name: 'Бакалея', icon: 'i-sack', bg: '#fdf1dc' },
+  { id: 'milk', name: 'Молочное', icon: 'i-milk', bg: '#e6f0fd' },
+  { id: 'drink', name: 'Напитки', icon: 'i-bottle', bg: '#e2f5fa' },
+  { id: 'sweet', name: 'Сладости', icon: 'i-candy', bg: '#fdeedd' },
+  { id: 'can', name: 'Консервы', icon: 'i-can', bg: '#fde7e8' },
+  { id: 'chem', name: 'Бытовая химия', icon: 'i-spray', bg: '#efeafe' }
+];
+const PRODUCTS = [
+  ['bak', 'Рис девзира', '1 кг', 24], ['bak', 'Мука высший сорт', '2 кг', 19], ['bak', 'Сахар', '1 кг', 13],
+  ['bak', 'Масло подсолнечное', '1 л', 22], ['bak', 'Макароны рожки', '400 г', 9], ['bak', 'Гречка', '800 г', 16],
+  ['bak', 'Чай зелёный', '100 г', 18], ['bak', 'Соль йодированная', '1 кг', 4],
+  ['milk', 'Молоко 3,2%', '1 л', 11], ['milk', 'Кефир 2,5%', '900 мл', 10], ['milk', 'Сметана 20%', '400 г', 15],
+  ['milk', 'Сыр твёрдый', '300 г', 38], ['milk', 'Масло сливочное', '200 г', 27], ['milk', 'Йогурт клубничный', '250 г', 8],
+  ['drink', 'Вода питьевая', '1,5 л', 4], ['drink', 'Сок яблочный', '1 л', 14], ['drink', 'Газировка кола', '1,5 л', 12],
+  ['drink', 'Минеральная вода', '0,5 л', 5], ['drink', 'Холодный чай лимон', '1 л', 11],
+  ['sweet', 'Шоколад молочный', '90 г', 12], ['sweet', 'Печенье овсяное', '300 г', 13], ['sweet', 'Конфеты ассорти', '250 г', 29],
+  ['sweet', 'Вафли', '200 г', 9], ['sweet', 'Халва подсолнечная', '350 г', 17],
+  ['can', 'Тушёнка говяжья', '325 г', 31], ['can', 'Горошек зелёный', '400 г', 12], ['can', 'Кукуруза сладкая', '340 г', 13],
+  ['can', 'Томатная паста', '380 г', 11], ['can', 'Сгущённое молоко', '380 г', 16],
+  ['chem', 'Стиральный порошок', '3 кг', 64], ['chem', 'Средство для посуды', '500 мл', 14], ['chem', 'Мыло хозяйственное', '200 г', 5],
+  ['chem', 'Туалетная бумага', '4 рулона', 15], ['chem', 'Чистящее средство', '750 мл', 18]
+].map((p, i) => ({ id: 'p' + i, cat: p[0], name: p[1], unit: p[2], price: p[3] }));
 
-const tg = window.Telegram && window.Telegram.WebApp;
-const $ = id => document.getElementById(id);
-let state = null, pos = null, busy = false;
-let map = null, meMarker = null, accCircle = null, pointLayer = null, refining = false;
-const GOOD_ACC = 25;  // точность, при которой перестаём уточнять, метров
-const APP_VERSION = '6';
-let refreshing = false, lastRefresh = 0;
-
-// ---------- Запуск ----------
-if (tg) {
-  tg.ready(); tg.expand();
-  try { tg.setHeaderColor('#f3f5fa'); tg.setBackgroundColor('#f3f5fa'); } catch (e) {}
-}
-$('ver').textContent = APP_VERSION;
-fillSelect($('commentIn'), COMMENTS_IN);
-fillSelect($('commentOut'), COMMENTS_OUT);
-start();
-
-async function start() {
-  if (!tg || !tg.initData) return fatal('Откройте табель через бота в Telegram.');
-  try {
-    const r = await api('init');
-    if (!r.ok) return fatal(r.message || 'Нет доступа');
-    applyState(r);
-  } catch (e) {
-    fatal('Нет связи с сервером. Проверьте интернет и откройте табель заново.');
-  }
-}
-
-function fatal(text) { $('vLoading').innerHTML = '<div>' + esc(text) + '</div>'; show('vLoading'); }
-function show(id) { ['vLoading', 'vReg', 'vMain'].forEach(v => $(v).classList.toggle('hidden', v !== id)); }
-
-// ---------- Связь с сервером ----------
-async function api(action, data) {
-  const res = await fetch(API_URL, {
-    method: 'POST',  // text/plain: без предварительного CORS-запроса
-    body: JSON.stringify(Object.assign({ action: action, initData: tg ? tg.initData : '' }, data || {}))
+const POINTS = [
+  { id: 't1', name: 'ТТ-1 Центральный', addr: 'пр. Рудаки, 45', hours: '08:00–22:00', delivery: { fee: 15, freeFrom: 250, min: 80, eta: '45–90 мин' } },
+  { id: 't2', name: 'ТТ-2 Рынок', addr: 'ул. Сомони, 12', hours: '07:00–20:00', delivery: null },
+  { id: 't3', name: 'ТТ-3 Вокзал', addr: 'ул. Айни, 3', hours: '08:00–21:00', delivery: { fee: 20, freeFrom: 300, min: 100, eta: '60–120 мин' } },
+  { id: 't4', name: 'ТТ-4 Сино', addr: 'ул. Карамова, 88', hours: '09:00–21:00', delivery: null },
+  { id: 't5', name: 'Склад-2 Северный', addr: 'ул. Борбад, 140', hours: '08:00–18:00', delivery: { fee: 10, freeFrom: 400, min: 150, eta: 'на следующий день' } },
+  { id: 't6', name: 'ТТ-6 Профсоюз', addr: 'ул. Мирзо Турсунзаде, 30', hours: '08:00–22:00', delivery: { fee: 15, freeFrom: 250, min: 80, eta: '45–90 мин' } },
+  { id: 't7', name: 'ТТ-7 Зарафшон', addr: 'мкр. Зарафшон, 5', hours: '08:00–20:00', delivery: null },
+  { id: 't8', name: 'ТТ-8 Шохмансур', addr: 'ул. Шотемура, 21', hours: '08:00–21:00', delivery: null }
+];
+// Остатки: на каждой точке своё наличие (детерминированный пример)
+const STOCK = {};
+POINTS.forEach((pt, a) => {
+  STOCK[pt.id] = {};
+  PRODUCTS.forEach((p, b) => {
+    let s = ((a + 3) * 7919 + (b + 1) * 104729) % 2147483647;
+    s = s * 16807 % 2147483647;
+    const r = s % 100;
+    STOCK[pt.id][p.id] = r < 22 ? 0 : r < 32 ? 1 + r % 3 : 4 + r % 40;
   });
-  return res.json();
-}
+});
 
 // ---------- Состояние ----------
-function applyState(r) {
-  state = r;
-  if (!r.registered) return showReg(r);
-  show('vMain');
-  $('userName').textContent = r.user.name;
-  $('avatar').textContent = (r.user.name.trim()[0] || '?').toUpperCase();
-  const sup = isSup();
-  $('supBox').classList.toggle('hidden', !sup);
-  $('inTitle').textContent = sup ? 'Начать день' : 'Начать работу';
-  $('outTitle').textContent = sup ? 'Завершить день' : 'Завершить работу';
-  renderPending();
-  renderSup();
-  renderButtons();
-  initMap();
-  drawPoints();
-  updatePill();
-  if (!pos) refreshLocation();
-  else renderDistance();
-}
-
-function showReg(r) {
-  show('vReg');
-  $('regName').value = $('regName').value || r.suggestedName || '';
-  const sel = $('regPoint');
-  sel.innerHTML = '<option value="">— выберите —</option>' +
-    r.points.map(p => '<option>' + esc(p) + '</option>').join('');
-  if (!r.points.length) toast('Рабочие места ещё не настроены. Обратитесь к администратору.', 'err');
-}
-
-$('regBtn').onclick = async () => {
-  const name = $('regName').value.trim(), point = $('regPoint').value;
-  if (name.length < 3) return toast('Введите фамилию и имя', 'err');
-  if (!point) return toast('Выберите рабочее место', 'err');
-  $('regBtn').disabled = true;
-  try {
-    const r = await api('register', { name: name, point: point });
-    if (!r.ok) return toast(r.message, 'err');
-    haptic('success');
-    applyState(r);
-  } catch (e) { toast('Нет связи с сервером', 'err'); }
-  finally { $('regBtn').disabled = false; }
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('stt_shop_' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('stt_shop_' + k, JSON.stringify(v)); } catch (e) {} }
 };
+let pointId = store.get('point', null);
+if (!POINTS.some(p => p.id === pointId)) pointId = null;
+let cart = store.get('cart', {});
+let cat = 'all', query = '';
+let checkout = { method: 'pickup', addr: '', phone: '', slot: 'Как можно скорее', pay: 'cash', comment: '' };
+let lastOrder = null, orderTimer = null;
 
-function renderButtons() {
-  const s = state.shift, inB = $('btnIn'), outB = $('btnOut');
-  inB.className = 'card act'; outB.className = 'card act';
-  if (s.open) {
-    inB.disabled = true; inB.classList.add('done'); $('inSub').textContent = 'Отмечено в ' + s.inTime;
-    outB.disabled = false; outB.classList.add('ready'); $('outSub').textContent = 'Нажмите для отметки';
-  } else if (s.closedToday) {
-    inB.disabled = true; inB.classList.add('done'); $('inSub').textContent = 'Отмечено в ' + s.inToday;
-    outB.disabled = true; outB.classList.add('done'); $('outSub').textContent = 'Отмечено в ' + s.outTime;
-  } else {
-    inB.disabled = false; inB.classList.add('ready'); $('inSub').textContent = 'Нажмите для отметки';
-    outB.disabled = true; $('outSub').textContent = 'Сначала начните';
-  }
-  $('commentIn').disabled = inB.disabled;
-  $('commentOut').disabled = outB.disabled;
-  if (inB.disabled) $('otherIn').classList.add('hidden');
-  if (outB.disabled) $('otherOut').classList.add('hidden');
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = n => Math.round(n).toLocaleString('ru-RU') + ' с.';
+const point = () => POINTS.find(p => p.id === pointId) || null;
+const stock = id => pointId ? (STOCK[pointId][id] || 0) : 0;
+const catOf = id => CATS.find(c => c.id === id);
+const pic = (p, cls) => { const c = catOf(p.cat); return '<div class="' + cls + '" style="background:' + c.bg + '"><svg aria-hidden="true"><use href="#' + c.icon + '"/></svg></div>'; };
+function haptic(t) { try { tg.HapticFeedback.impactOccurred(t || 'light'); } catch (e) {} }
+let tt;
+function toast(t) { const el = $('toast'); el.textContent = t; el.classList.remove('off'); clearTimeout(tt); tt = setTimeout(() => el.classList.add('off'), 3200); }
+function save() { store.set('point', pointId); store.set('cart', cart); }
 
-  const tp = targetPoint();
-  const end = tp ? tp.end : '';
-  $('todayInfo').textContent = s.closedToday ? (isSup() ? 'День завершён. Хорошего отдыха!' :
-    'Смена на сегодня закрыта. Хорошего отдыха!') : (end && !isSup() ? 'Рабочий день до ' + end : '');
-  updateNearest();
+// ---------- Каталог ----------
+function renderHeader() {
+  const p = point();
+  $('pointName').textContent = p ? p.name : 'Выберите точку';
+  $('pointSub').textContent = p ? (p.delivery ? 'Доставка ' + p.delivery.eta + ' · самовывоз' : 'Только самовывоз') + ' · ' + p.hours
+    : 'Покажем товары, которые есть на ней сейчас';
+  $('cats').innerHTML = [{ id: 'all', name: 'Все' }].concat(CATS).map(c =>
+    '<button class="cat" data-c="' + c.id + '" aria-pressed="' + (cat === c.id) + '">' + esc(c.name) + '</button>').join('');
 }
 
-function isSup() { return !!(state && state.user && state.user.role === 'sup'); }
-
-// ---------- Карта и геолокация ----------
-// Точка, к которой сейчас идёт отметка:
-// при открытой смене — точка прихода, иначе ближайшая из доступных
-function targetPoint() {
-  const pts = state.points || [];
-  if (isSup() && state.openVisit) return pts.find(p => p.name === state.openVisit.point) || null;
-  if (state.shiftPoint) return pts.find(p => p.name === state.shiftPoint) || null;
-  if (!pts.length) return null;
-  if (!pos) return pts.find(p => p.name === state.user.point) || pts[0];
-  return pts.slice().sort((a, b) => distance(pos.lat, pos.lon, a.lat, a.lon) - distance(pos.lat, pos.lon, b.lat, b.lon))[0];
+function renderGrid() {
+  const g = $('grid');
+  if (!pointId) { g.innerHTML = '<div class="empty" style="grid-column:1/-1">Выберите точку, чтобы увидеть товары в наличии</div>'; $('note').textContent = ''; return; }
+  const avail = PRODUCTS.filter(p => stock(p.id) > 0);
+  const q = query.trim().toLowerCase();
+  const list = avail.filter(p => (cat === 'all' || p.cat === cat) && (!q || p.name.toLowerCase().includes(q)));
+  $('note').textContent = 'В наличии на этой точке ' + avail.length + ' из ' + PRODUCTS.length + ' товаров каталога';
+  g.innerHTML = list.length ? list.map(p => {
+    const s = stock(p.id), n = cart[p.id] || 0;
+    return '<article class="card">' + pic(p, 'pic') + '<div class="price">' + money(p.price) + '</div><div class="name">' + esc(p.name) +
+      '</div><div class="unit">' + esc(p.unit) + '</div>' + (s <= 3 ? '<span class="left">Осталось ' + s + ' шт.</span>' : '') +
+      (n ? '<div class="step"><button data-dec="' + p.id + '" aria-label="Меньше">−</button><span>' + n + ' шт.</span><button data-inc="' + p.id + '" aria-label="Больше">+</button></div>'
+        : '<button class="add" data-inc="' + p.id + '">В корзину</button>') + '</article>';
+  }).join('') : '<div class="empty" style="grid-column:1/-1">Ничего не найдено на этой точке</div>';
 }
 
-function updatePill() {
-  const tp = targetPoint(), pts = state.points || [];
-  let t;
-  if (!pts.length) t = 'Точки не настроены';
-  else if (!tp) t = state.shiftPoint + ' — точка не найдена';
-  else if (isSup() && state.openVisit) t = tp.name + ' · вы на точке';
-  else if (state.shiftPoint) t = tp.name + ' · смена открыта здесь';
-  else if (pts.length > 1 && pos) t = tp.name + ' · ближайшая';
-  else t = tp.name;
-  $('pointName').textContent = t;
+function cartLines() { return Object.keys(cart).map(id => ({ p: PRODUCTS.find(x => x.id === id), n: cart[id] })).filter(l => l.p && l.n > 0); }
+function subtotal() { return cartLines().reduce((a, l) => a + l.p.price * l.n, 0); }
+function renderCartBar() {
+  const n = cartLines().reduce((a, l) => a + l.n, 0);
+  $('cartBar').hidden = !n;
+  $('cartCount').textContent = 'Корзина · ' + n + ' шт.';
+  $('cartSum').textContent = money(subtotal());
+}
+function render() { renderHeader(); renderGrid(); renderCartBar(); save(); }
+
+function change(id, d) {
+  const n = (cart[id] || 0) + d, s = stock(id);
+  if (n > s) { toast('На этой точке осталось только ' + s + ' шт.'); return; }
+  if (n <= 0) delete cart[id]; else cart[id] = n;
+  haptic();
+  render();
+  if (!$('ov').hidden && $('sheet').dataset.view === 'cart') openCart();
 }
 
-function initMap() {
-  if (map || !window.L) return;
-  const tp = targetPoint();
-  const center = tp ? [tp.lat, tp.lon] : [38.56, 68.78];
-  map = L.map('map', { zoomControl: false, attributionControl: true }).setView(center, 17);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, attribution: '© OpenStreetMap'
-  }).addTo(map);
-}
+// ---------- Шторки ----------
+function openSheet(html, view) { const s = $('sheet'); s.innerHTML = '<div class="grab"></div>' + html; s.dataset.view = view; $('ov').hidden = false; }
+function closeSheet() { $('ov').hidden = true; $('sheet').dataset.view = ''; }
 
-function drawPoints() {
-  if (!map) return;
-  if (pointLayer) pointLayer.remove();
-  pointLayer = L.layerGroup().addTo(map);
-  const tp = targetPoint();
-  (state.points || []).forEach(p => {
-    const main = tp && p.name === tp.name;
-    L.circle([p.lat, p.lon], { radius: p.radius, color: main ? '#2f6df6' : '#9aa3b5', weight: 1,
-      fillOpacity: main ? .1 : .05 }).addTo(pointLayer);
-    L.circleMarker([p.lat, p.lon], { radius: 5, color: main ? '#7a3cf0' : '#9aa3b5', fillOpacity: 1 })
-      .bindTooltip(p.name).addTo(pointLayer);
-  });
-}
-
-// Сначала GPS телефона (несколько секунд уточняем и берём самую точную отметку),
-// если не получилось — геолокация через Telegram
-function getLocation(onProgress) {
-  return browserLocation(onProgress).catch(e => telegramLocation().catch(() => { throw e; }));
-}
-
-function browserLocation(onProgress) {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) return reject(new Error('Геолокация недоступна на этом устройстве'));
-    let best = null, finished = false, id = null;
-    const end = () => { finished = true; if (id !== null) navigator.geolocation.clearWatch(id); clearTimeout(t); };
-    const t = setTimeout(() => {
-      if (finished) return;
-      end();
-      best ? resolve(best) : reject(new Error('Не удалось определить местоположение. Включите GPS.'));
-    }, 15000);
-    id = navigator.geolocation.watchPosition(p => {
-      if (finished) return;
-      if (p.timestamp && Date.now() - p.timestamp > 20000) return;  // старая (кэшированная) отметка — пропускаем
-      const c = { lat: p.coords.latitude, lon: p.coords.longitude, acc: Math.round(p.coords.accuracy || 9999),
-        src: 'GPS телефона', time: Date.now() };
-      if (!best || c.acc < best.acc) { best = c; if (onProgress) onProgress(best); }
-      if (best.acc <= GOOD_ACC) { end(); resolve(best); }
-    }, e => {
-      if (finished) return;
-      if (best) { end(); return resolve(best); }
-      if (e.code === 3) return;  // ждём общий таймер
-      end();
-      reject(new Error(e.code === 1 ? 'Нет доступа к геолокации. Разрешите Telegram доступ к местоположению.'
-        : 'Не удалось определить местоположение. Включите GPS.'));
-    }, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
-  });
-}
-
-function telegramLocation() {
-  return new Promise((resolve, reject) => {
-    const LM = tg && tg.LocationManager;
-    if (!LM || !tg.isVersionAtLeast || !tg.isVersionAtLeast('8.0')) return reject(new Error('нет'));
-    const go = () => {
-      if (!LM.isLocationAvailable) return reject(new Error('нет'));
-      LM.getLocation(d => {
-        if (d) return resolve({ lat: d.latitude, lon: d.longitude, acc: Math.round(d.horizontal_accuracy || 0),
-          src: 'Telegram', time: Date.now() });
-        if (LM.isAccessRequested && !LM.isAccessGranted) {
-          tg.showConfirm('Нет доступа к геолокации. Открыть настройки, чтобы разрешить?', ok => {
-            if (ok) LM.openSettings();
-          });
-        }
-        reject(new Error('нет'));
-      });
-    };
-    LM.isInited ? go() : LM.init(go);
-  });
-}
-
-async function refreshLocation() {
-  if (refreshing) return refreshing;
-  refreshing = doRefresh().finally(() => { refreshing = false; lastRefresh = Date.now(); });
-  return refreshing;
-}
-
-async function doRefresh() {
-  const btn = $('refreshBtn');
-  btn.classList.add('spin');
-  setStatus('wait', 'Определяем местоположение…');
-  refining = true;
-  try {
-    pos = await getLocation(c => { pos = c; renderDistance(); });
-    refining = false;
-    renderDistance();
-    return pos;
-  } catch (e) {
-    setStatus('bad', e.message);
-    throw e;
-  } finally {
-    refining = false;
-    btn.classList.remove('spin');
-  }
-}
-
-function renderDistance() {
-  if (!pos) return;
-  const ll = [pos.lat, pos.lon], p = targetPoint();
-  updatePill();
-  drawPoints();
-  renderButtons();
-  if (map) {  // карта может не загрузиться при плохом интернете — отметка работает и без неё
-    const icon = L.divIcon({ className: '', html: '<div class="me-dot"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
-    if (meMarker) meMarker.setLatLng(ll); else meMarker = L.marker(ll, { icon: icon }).addTo(map);
-    if (accCircle) accCircle.setLatLng(ll).setRadius(pos.acc);
-    else accCircle = L.circle(ll, { radius: pos.acc, color: '#2f6df6', weight: 0, fillOpacity: .12 }).addTo(map);
-  }
-  if (!p) { if (map) map.setView(ll, 17); return setStatus('bad', 'Нет доступных точек'); }
-  const d = Math.round(distance(pos.lat, pos.lon, p.lat, p.lon));
-  const accTxt = ' (±' + pos.acc + ' м)' + (refining ? ' · уточняем…' : '');
-  if (d <= p.radius) {
-    setStatus('ok', '● На месте · ' + fmtDist(d) + accTxt);
-    if (map) map.setView([p.lat, p.lon], 17);
-  } else {
-    if (isSup()) setStatus('wait', 'До ближайшей точки ' + fmtDist(d) + accTxt);
-    else setStatus(refining ? 'wait' : 'bad', '● Вне точки · ' + fmtDist(d) + accTxt);
-    if (map) map.fitBounds(L.latLngBounds([ll, [p.lat, p.lon]]), { padding: [40, 40], maxZoom: 17 });
-  }
-  if (pos.acc > 100) setStatus(refining ? 'wait' : 'bad', 'Низкая точность ±' + fmtDist(pos.acc) +
-    (refining ? ' · уточняем…' : ' · включите точную геолокацию'));
-}
-
-function setStatus(kind, text) { const s = $('geoStatus'); s.className = 'status ' + kind; s.textContent = text; }
-
-$('refreshBtn').onclick = () => refreshLocation().catch(() => {});
-
-// Обновляем местоположение, когда приложение снова открыли, и раз в минуту, пока оно на экране
-function autoRefresh() {
-  if (!state || !state.registered || busy || document.hidden) return;
-  if (Date.now() - lastRefresh < 10000) return;
-  refreshLocation().catch(() => {});
-  const typing = document.activeElement && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName);
-  const sheetOpen = document.querySelector('.overlay:not(.hidden)');
-  if (!typing && !sheetOpen) api('init').then(r => { if (r.ok && !busy) applyState(r); }).catch(() => {});
-}
-document.addEventListener('visibilitychange', autoRefresh);
-if (tg && tg.onEvent) tg.onEvent('activated', autoRefresh);
-setInterval(autoRefresh, 60000);
-$('geoStatus').onclick = () => {
-  if (!pos) return;
-  toast('Ваши координаты: ' + pos.lat.toFixed(6) + ', ' + pos.lon.toFixed(6) + ' (±' + pos.acc + ' м, ' + pos.src + ')');
-};
-
-// ---------- Отметка ----------
-$('btnIn').onclick = () => markAction('in');
-$('btnOut').onclick = () => {
-  const now = new Date().toTimeString().slice(0, 5);
-  if (tg && tg.showConfirm) tg.showConfirm('Завершить рабочий день в ' + now + '?', ok => { if (ok) markAction('out'); });
-  else markAction('out');
-};
-
-async function markAction(kind) {
-  if (busy) return;
-  const comment = commentValue(kind);
-  if (comment === null) return toast('Напишите комментарий', 'err');
-  busy = true;
-  const btn = kind === 'in' ? $('btnIn') : $('btnOut');
-  const ico = btn.querySelector('.ico'), icoHtml = ico.innerHTML;
-  ico.innerHTML = '<div class="loader"></div>';
-  try {
-    const loc = await refreshLocation();  // всегда свежие координаты в момент отметки
-    const r = await api(kind === 'in' ? 'checkin' : 'checkout',
-      { lat: loc.lat, lon: loc.lon, acc: loc.acc, comment: comment });
-    if (r.ok) {
-      haptic('success');
-      toast(r.message, 'ok');
-      resetComment(kind);
-      applyState(r);
-    } else {
-      haptic('error');
-      toast(r.message || 'Ошибка', 'err');
-      if (r.error === 'need_comment') {
-        $('selOutWrap').classList.add('need');
-        $('commentOut').focus();
-      }
-    }
-  } catch (e) {
-    haptic('error');
-    if (e && e.message && !/fetch/i.test(e.message)) toast(e.message, 'err');
-    else toast('Нет связи с сервером. Попробуйте ещё раз.', 'err');
-  } finally {
-    ico.innerHTML = icoHtml;
-    busy = false;
-  }
-}
-
-// ---------- Супервайзер: визиты, инкассация, маршрут ----------
-function money(n) { return Number(n).toLocaleString('ru-RU') + ' сом.'; }
-const ST_ICON = { 'Подтверждено': '<span class="tag ok">подтверждено</span>',
-  'Расхождение': '<span class="tag">расхождение</span>', 'Ожидает': '<span class="tag wait">ждёт продавца</span>' };
-
-function renderSup() {
-  if (!isSup()) return;
-  const st = state, vb = $('visitBody');
-  if (!st.shift.open) {
-    vb.innerHTML = '<div class="muted">' + (st.shift.closedToday ? 'День завершён.' :
-      'Нажмите «Начать день», чтобы отмечаться на точках.') + '</div>';
-  } else if (!st.openVisit) {
-    vb.innerHTML = '<div class="muted" id="nearestTxt">Определяем ближайшую точку…</div>' +
-      '<button class="btn2 full" id="visitStartBtn">📍 Я на точке</button>';
-    $('visitStartBtn').onclick = visitStart;
-  } else {
-    const v = st.openVisit;
-    const inks = (st.inks || []).filter(i => i.point === v.point);
-    vb.innerHTML = '<div class="here">' + esc(v.point) + '</div><div class="muted">на точке с ' + esc(v.in) +
-      (v.inRoute ? '' : ' · <span class="tag wait">вне маршрута</span>') + '</div>' +
-      inks.map(i => '<div class="rp"><div class="nm">' + money(i.amount) + '<small>' + esc(i.time) +
-        (i.status === 'Расхождение' && i.sellerAmount !== null ? ' · продавец: ' + money(i.sellerAmount) : '') +
-        '</small></div>' + (ST_ICON[i.status] || '') + '</div>').join('') +
-      '<div class="ink-row"><input id="inkAmount" class="input" inputmode="decimal" placeholder="Сумма инкассации, сом.">' +
-      '<button class="btn2" id="inkBtn">Записать</button></div>' +
-      '<button class="btn2 ghost full" id="visitEndBtn">Ухожу с точки</button>';
-    $('inkBtn').onclick = inkCreate;
-    $('visitEndBtn').onclick = visitEnd;
-  }
-
-  const route = st.route, visits = st.visits || [];
-  $('routeEdit').textContent = route ? 'Изменить' : 'Составить';
-  $('routeEdit').classList.toggle('hidden', st.shift.closedToday);
-  const visited = {}, sums = {};
-  visits.forEach(v => { visited[v.point] = true; });
-  (st.inks || []).forEach(i => { sums[i.point] = (sums[i.point] || 0) + i.amount; });
-  const nowAt = st.openVisit ? st.openVisit.point : '';
-  const names = (route || []).concat(Object.keys(visited).filter(p => !route || route.indexOf(p) < 0));
-  if (!names.length) {
-    $('routeBody').innerHTML = '<div class="muted">Маршрут не составлен. Нажмите «Составить» и отметьте точки на сегодня.</div>';
-  } else {
-    const done = (route || []).filter(p => visited[p]).length;
-    const total = Object.values(sums).reduce((a, b) => a + b, 0);
-    $('routeBody').innerHTML = names.map((p, i) => {
-      const off = !route || route.indexOf(p) < 0;
-      const cls = p === nowAt ? 'now' : visited[p] ? 'v' : '';
-      const ico = p === nowAt ? '●' : visited[p] ? '✓' : (i + 1);
-      const vs = visits.filter(v => v.point === p).map(v => v.in + (v.out ? '–' + v.out : '')).join(', ');
-      return '<div class="rp"><div class="dot ' + cls + '">' + ico + '</div><div class="nm">' + esc(p) +
-        (off ? ' <span class="tag wait">вне маршрута</span>' : '') + '<small>' + (vs || 'не посещена') +
-        '</small></div><div class="sum">' + (sums[p] ? money(sums[p]) : '') + '</div></div>';
-    }).join('') + '<div class="muted" style="margin-top:8px">Посещено ' + done + ' из ' + (route || []).length +
-      (total ? ' · инкассировано ' + money(total) : '') + '</div>';
-  }
-  updateNearest();
-}
-
-function updateNearest() {
-  const el = $('nearestTxt');
-  if (!el) return;
-  if (!pos || !(state.points || []).length) return;
-  const p = targetPoint(), d = Math.round(distance(pos.lat, pos.lon, p.lat, p.lon));
-  el.innerHTML = d <= p.radius ? 'Вы у точки <b>' + esc(p.name) + '</b> · ' + fmtDist(d) :
-    'Ближайшая точка: ' + esc(p.name) + ' · ' + fmtDist(d);
-}
-
-async function supAction(action, data, btn) {
-  if (busy) return;
-  busy = true;
-  if (btn) btn.disabled = true;
-  try {
-    const r = await api(action, data);
-    if (r.ok) { haptic('success'); toast(r.message, 'ok'); applyState(r); return true; }
-    haptic('error'); toast(r.message || 'Ошибка', 'err');
-  } catch (e) {
-    toast(e && e.message && !/fetch/i.test(e.message) ? e.message : 'Нет связи с сервером', 'err');
-  } finally {
-    busy = false;
-    if (btn && document.body.contains(btn)) btn.disabled = false;
-  }
-  return false;
-}
-
-async function visitStart() {
-  const btn = $('visitStartBtn');
-  btn.disabled = true; btn.textContent = 'Определяем местоположение…';
-  try {
-    const loc = await refreshLocation();
-    await supAction('visitstart', { lat: loc.lat, lon: loc.lon, acc: loc.acc }, btn);
-  } catch (e) { toast(e.message || 'Не удалось определить местоположение', 'err'); }
-  finally { if (document.body.contains(btn)) { btn.disabled = false; btn.textContent = '📍 Я на точке'; } }
-}
-
-function inkCreate() {
-  const v = $('inkAmount').value.replace(/\s/g, '').replace(',', '.');
-  const n = Number(v);
-  if (!v || !isFinite(n) || n <= 0) return toast('Введите сумму', 'err');
-  const go = () => supAction('ink', { amount: n }, $('inkBtn'));
-  if (tg && tg.showConfirm) tg.showConfirm('Записать инкассацию ' + money(n) + ' на «' + state.openVisit.point + '»?',
-    ok => { if (ok) go(); });
-  else go();
-}
-
-function visitEnd() {
-  const go = () => supAction('visitend', {}, $('visitEndBtn'));
-  if (tg && tg.showConfirm) tg.showConfirm('Отметить уход с «' + state.openVisit.point + '»?', ok => { if (ok) go(); });
-  else go();
-}
-
-$('routeEdit').onclick = () => {
-  const chosen = {};
-  (state.route || []).forEach(p => chosen[p] = true);
-  const pts = (state.points || []).slice();
-  if (pos) pts.sort((a, b) => distance(pos.lat, pos.lon, a.lat, a.lon) - distance(pos.lat, pos.lon, b.lat, b.lon));
-  $('routeChoices').innerHTML = pts.map(p => '<label class="chk"><input type="checkbox" value="' + esc(p.name) + '"' +
-    (chosen[p.name] ? ' checked' : '') + '><span>' + esc(p.name) + '</span><small>' +
-    (pos ? fmtDist(Math.round(distance(pos.lat, pos.lon, p.lat, p.lon))) : '') + '</small></label>').join('') ||
-    '<div class="empty">За вами не закреплено точек</div>';
-  const upd = () => {
-    const n = document.querySelectorAll('#routeChoices input:checked').length;
-    $('routeSend').textContent = n ? 'Отправить маршрут (' + n + ')' : 'Отметьте точки';
-    $('routeSend').disabled = !n;
+function openPoints() {
+  openSheet('<h2>Выберите точку</h2><input id="ptq" class="in" type="search" placeholder="Название или адрес" autocomplete="off"><div id="ptList" style="margin-top:12px"></div>' +
+    '<p class="hint">В демо 8 точек. В рабочей версии — все 234, с поиском и подсказкой ближайшей.</p>', 'points');
+  const draw = () => {
+    const q = $('ptq').value.trim().toLowerCase();
+    $('ptList').innerHTML = POINTS.filter(p => !q || (p.name + ' ' + p.addr).toLowerCase().includes(q)).map(p => {
+      const n = PRODUCTS.filter(x => STOCK[p.id][x.id] > 0).length;
+      return '<button class="pt" data-pt="' + p.id + '" aria-current="' + (p.id === pointId) + '"><span style="flex:1"><b>' + esc(p.name) + '</b><small>' + esc(p.addr) + ' · ' + esc(p.hours) + '</small><span class="tags">' +
+        (p.delivery ? '<span class="tag ok">Доставка ' + esc(p.delivery.eta) + '</span>' : '<span class="tag">Только самовывоз</span>') +
+        '<span class="tag">' + n + ' товаров в наличии</span></span></span></button>';
+    }).join('') || '<div class="empty">Точка не найдена</div>';
   };
-  document.querySelectorAll('#routeChoices input').forEach(i => i.onchange = upd);
-  upd();
-  openSheet('routeSheet');
-};
-$('routeSend').onclick = async () => {
-  const list = Array.from(document.querySelectorAll('#routeChoices input:checked')).map(i => i.value);
-  if (await supAction('route', { points: list }, $('routeSend'))) closeSheets();
-};
+  $('ptq').oninput = draw;
+  draw();
+}
 
-// ---------- Продавец: подтверждение инкассации ----------
-function renderPending() {
-  const list = (!isSup() && state.pendingInks) || [];
-  $('pendingBox').innerHTML = list.map(i =>
-    '<div class="card pend" data-id="' + esc(i.id) + '"><div class="muted">💰 Инкассация · ' + esc(i.point) + ' · ' +
-    esc(i.time) + '</div><div class="amt">' + money(i.amount) + '</div><div class="muted">Забрал супервайзер ' +
-    esc(i.sup) + '. Подтвердите сумму, которую вы передали.</div>' +
-    '<div class="row2"><button class="btn2 full" style="margin:0" data-ok="1">Подтверждаю</button>' +
-    '<button class="btn2 ghost full" style="margin:0" data-ok="0">Сумма другая</button></div>' +
-    '<div class="ink-row hidden"><input class="input" inputmode="decimal" placeholder="Сколько вы передали, сом.">' +
-    '<button class="btn2" data-send="1">Отправить</button></div></div>').join('');
-  document.querySelectorAll('#pendingBox .pend').forEach(card => {
-    const id = card.dataset.id;
-    card.querySelector('[data-ok="1"]').onclick = e => supAction('inkconfirm', { id: id, ok: true }, e.target);
-    card.querySelector('[data-ok="0"]').onclick = () => {
-      card.querySelector('.ink-row').classList.remove('hidden');
-      card.querySelector('.ink-row input').focus();
-    };
-    card.querySelector('[data-send="1"]').onclick = e => {
-      const v = card.querySelector('.ink-row input').value.replace(/\s/g, '').replace(',', '.');
-      if (!v || !isFinite(Number(v))) return toast('Введите сумму', 'err');
-      supAction('inkconfirm', { id: id, ok: false, amount: Number(v) }, e.target);
-    };
+function selectPoint(id) {
+  const prev = pointId;
+  pointId = id;
+  let removed = 0, cut = 0;
+  Object.keys(cart).forEach(pid => {
+    const s = stock(pid);
+    if (s === 0) { delete cart[pid]; removed++; } else if (cart[pid] > s) { cart[pid] = s; cut++; }
   });
+  const p = point();
+  if (!p.delivery && checkout.method === 'delivery') checkout.method = 'pickup';
+  closeSheet();
+  render();
+  if (prev && prev !== id && (removed || cut))
+    toast((removed ? 'Убрано из корзины: ' + removed + ' — нет на этой точке. ' : '') + (cut ? 'Уменьшено: ' + cut + '.' : ''));
 }
 
-// ---------- Комментарии ----------
-function fillSelect(sel, list) { sel.innerHTML = list.map(t => '<option>' + esc(t) + '</option>').join(''); }
-$('commentIn').onchange = () => $('otherIn').classList.toggle('hidden', $('commentIn').value !== 'Другое…');
-$('commentOut').onchange = () => {
-  $('selOutWrap').classList.remove('need');
-  $('otherOut').classList.toggle('hidden', $('commentOut').value !== 'Другое…');
-};
-function commentValue(kind) {
-  const sel = kind === 'in' ? $('commentIn') : $('commentOut');
-  const other = kind === 'in' ? $('otherIn') : $('otherOut');
-  if (sel.selectedIndex === 0) return '';
-  if (sel.value === 'Другое…') return other.value.trim() || null;
-  return sel.value;
-}
-function resetComment(kind) {
-  const sel = kind === 'in' ? $('commentIn') : $('commentOut');
-  sel.selectedIndex = 0; sel.onchange();
-  (kind === 'in' ? $('otherIn') : $('otherOut')).value = '';
+function openCart() {
+  const p = point(), lines = cartLines(), sub = subtotal(), d = p.delivery;
+  const isDel = checkout.method === 'delivery' && d;
+  const fee = isDel ? (sub >= d.freeFrom ? 0 : d.fee) : 0;
+  const tooSmall = isDel && sub < d.min;
+  openSheet('<h2>Корзина</h2><div class="hint" style="margin-top:-6px">' + esc(p.name) + ', ' + esc(p.addr) + '</div>' +
+    lines.map(l => '<div class="line">' + pic(l.p, 'mini') + '<div class="nm">' + esc(l.p.name) + '<small>' + esc(l.p.unit) + ' · ' + money(l.p.price) + '</small></div>' +
+      '<div class="qty"><button data-dec="' + l.p.id + '" aria-label="Меньше">−</button><span>' + l.n + '</span><button data-inc="' + l.p.id + '" aria-label="Больше">+</button></div></div>').join('') +
+    '<div class="seg" role="group" aria-label="Способ получения"><button data-m="pickup" aria-pressed="' + !isDel + '">Самовывоз</button><button data-m="delivery" aria-pressed="' + !!isDel + '"' + (d ? '' : ' disabled') + '>Доставка</button></div>' +
+    '<div class="hint">' + (d ? (isDel ? 'Доставка ' + d.eta + ' · ' + money(d.fee) + ', бесплатно от ' + money(d.freeFrom) + ' · минимальный заказ ' + money(d.min)
+      : 'Заберите заказ на точке, мы пришлём сообщение, когда он будет собран') : 'На этой точке нет доставки — только самовывоз') + '</div>' +
+    (isDel ? '<label class="f" for="addr">Адрес доставки</label><input id="addr" class="in" placeholder="Улица, дом, квартира" value="' + esc(checkout.addr) + '">' : '') +
+    '<label class="f" for="phone">Телефон</label><input id="phone" class="in" type="tel" inputmode="tel" placeholder="+992 __ ___ __ __" value="' + esc(checkout.phone) + '">' +
+    '<label class="f" for="slot">Когда</label><select id="slot" class="in">' + ['Как можно скорее', 'Сегодня 12:00–14:00', 'Сегодня 16:00–18:00', 'Сегодня 18:00–20:00', 'Завтра 10:00–12:00']
+      .map(s => '<option' + (s === checkout.slot ? ' selected' : '') + '>' + s + '</option>').join('') + '</select>' +
+    '<label class="f">Оплата</label><div class="radio"><label><input type="radio" name="pay" value="cash"' + (checkout.pay === 'cash' ? ' checked' : '') + '>Наличными</label>' +
+    '<label><input type="radio" name="pay" value="card"' + (checkout.pay === 'card' ? ' checked' : '') + '>Картой при получении</label></div>' +
+    '<label class="f" for="cmt">Комментарий</label><input id="cmt" class="in" placeholder="Например: позвонить за 10 минут" value="' + esc(checkout.comment) + '">' +
+    '<div class="sum"><div><span>Товары</span><span>' + money(sub) + '</span></div>' + (isDel ? '<div><span>Доставка</span><span>' + (fee ? money(fee) : 'бесплатно') + '</span></div>' : '') +
+    '<div class="tot"><span>Итого</span><span>' + money(sub + fee) + '</span></div></div>' +
+    (tooSmall ? '<div class="warn">Для доставки добавьте товаров ещё на ' + money(d.min - sub) + '</div>' : '') +
+    '<button class="big" id="order"' + (tooSmall || !lines.length ? ' disabled' : '') + '>Оформить заказ</button>', 'cart');
+  const keep = () => {
+    if ($('addr')) checkout.addr = $('addr').value;
+    checkout.phone = $('phone').value; checkout.slot = $('slot').value; checkout.comment = $('cmt').value;
+    const r = document.querySelector('input[name=pay]:checked'); if (r) checkout.pay = r.value;
+  };
+  $('sheet').oninput = keep; $('sheet').onchange = keep;
+  $('order').onclick = () => {
+    keep();
+    if (isDel && checkout.addr.trim().length < 5) return toast('Укажите адрес доставки');
+    if (checkout.phone.replace(/\D/g, '').length < 9) return toast('Укажите номер телефона');
+    lastOrder = { no: 10000 + Math.floor(Math.random() * 89999), point: p, lines: lines, total: sub + fee, isDel: !!isDel, slot: checkout.slot, step: 0 };
+    cart = {}; render(); haptic('heavy'); openOrder();
+    clearInterval(orderTimer);
+    orderTimer = setInterval(() => { if (lastOrder.step < 2) { lastOrder.step++; if ($('sheet').dataset.view === 'order') openOrder(); } else clearInterval(orderTimer); }, 4000);
+  };
 }
 
-// ---------- История ----------
-$('histBtn').onclick = async () => {
-  openSheet('histSheet');
-  $('histList').innerHTML = '<div class="empty">Загрузка…</div>';
-  try {
-    const r = await api('history');
-    if (!r.ok) throw new Error(r.message);
-    let html = '';
-    if (r.leaves && r.leaves.length) {
-      html += '<h4>Отпрашивания</h4>' + r.leaves.map(l => {
-        const cls = /одобр|соглас/i.test(l.status) ? 'ok' : /отказ|отклон/i.test(l.status) ? '' : 'wait';
-        return '<div class="item"><div><div class="d">' + esc(l.from === l.to ? l.from : l.from + ' — ' + l.to) +
-          '</div><div class="t">' + esc(l.reason) + '</div></div><div><span class="tag ' + cls + '">' +
-          esc(l.status) + '</span></div></div>';
-      }).join('') + '<h4>Смены</h4>';
-    }
-    html += r.items.length ? r.items.map(i => {
-      const notes = [i.commentIn, i.commentOut].filter(Boolean).join(' · ');
-      return '<div class="item"><div><div class="d">' + esc(i.date) + (i.early ? '<span class="tag">ранний уход</span>' : '') +
-        '</div><div class="t">' + esc(i.point) + ' · ' + esc(i.in) + ' – ' + esc(i.out || '…') + (notes ? ' · ' + esc(notes) : '') +
-        '</div></div><div class="h">' + (i.hours !== null ? fmtHours(i.hours) : '—') + '</div></div>';
-    }).join('') : '<div class="empty">Отметок пока нет</div>';
-    $('histList').innerHTML = html;
-  } catch (e) {
-    $('histList').innerHTML = '<div class="empty">Не удалось загрузить историю</div>';
-  }
-};
-
-// ---------- Отпрашивание ----------
-$('leaveBtn').onclick = () => {
-  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-  if (!$('lvFrom').value) $('lvFrom').value = today;
-  if (!$('lvTo').value) $('lvTo').value = today;
-  openSheet('leaveSheet');
-};
-$('lvReason').onchange = () => $('lvOther').classList.toggle('hidden', $('lvReason').value !== 'other');
-$('lvSend').onclick = async () => {
-  const reason = $('lvReason').value === 'other' ? $('lvOther').value.trim() : $('lvReason').value;
-  if (!reason) return toast('Укажите причину', 'err');
-  if ($('lvTo').value < $('lvFrom').value) return toast('Дата «по» раньше даты «с»', 'err');
-  $('lvSend').disabled = true;
-  try {
-    const r = await api('leave', { from: $('lvFrom').value, to: $('lvTo').value, reason: reason });
-    if (!r.ok) return toast(r.message, 'err');
-    haptic('success');
-    toast(r.message, 'ok');
-    closeSheets();
-    $('lvOther').value = '';
-  } catch (e) { toast('Нет связи с сервером', 'err'); }
-  finally { $('lvSend').disabled = false; }
-};
-
-// ---------- Шторки, уведомления, утилиты ----------
-function openSheet(id) {
-  $(id).classList.remove('hidden');
-  if (tg && tg.BackButton) { tg.BackButton.show(); tg.BackButton.onClick(closeSheets); }
+function openOrder() {
+  const o = lastOrder;
+  const steps = ['Заказ принят', 'Собираем на точке', o.isDel ? 'Курьер в пути' : 'Готов к выдаче'];
+  openSheet('<h2>Заказ № ' + o.no + '</h2><div class="hint">' + esc(o.point.name) + ' · ' + (o.isDel ? 'доставка' : 'самовывоз') + ' · ' + esc(o.slot) + '</div>' +
+    '<div class="track">' + steps.map((s, i) => '<div class="' + (i <= o.step ? 'on' : '') + '"><i>' + (i < o.step ? '✓' : i + 1) + '</i>' + s + '</div>').join('') + '</div>' +
+    '<div class="sum">' + o.lines.map(l => '<div><span>' + esc(l.p.name) + ' × ' + l.n + '</span><span>' + money(l.p.price * l.n) + '</span></div>').join('') +
+    '<div class="tot"><span>Итого</span><span>' + money(o.total) + '</span></div></div>' +
+    '<p class="hint" style="margin-top:12px">В рабочей версии заказ уходит в BILLZ на выбранную точку, а статусы приходят сообщением от бота.</p>' +
+    '<button class="big ghost" id="done">Вернуться в каталог</button>', 'order');
+  $('done').onclick = closeSheet;
 }
-function closeSheets() {
-  ['histSheet', 'leaveSheet', 'routeSheet'].forEach(id => $(id).classList.add('hidden'));
-  if (tg && tg.BackButton) { tg.BackButton.offClick(closeSheets); tg.BackButton.hide(); }
-}
-document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) closeSheets(); }));
 
-let toastTimer;
-function toast(text, kind) {
-  const t = $('toast');
-  t.textContent = text; t.className = 'toast ' + (kind || '');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.add('off'), 3800);
-}
-function haptic(type) { try { tg.HapticFeedback.notificationOccurred(type); } catch (e) {} }
-function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-function fmtDist(m) { return m >= 1000 ? (m / 1000).toFixed(1).replace('.', ',') + ' км' : m + ' м'; }
-function fmtHours(h) { const m = Math.round(h * 60); return Math.floor(m / 60) + ' ч ' + String(m % 60).padStart(2, '0') + ' м'; }
-function distance(lat1, lon1, lat2, lon2) {
-  const R = 6371000, rad = Math.PI / 180;
-  const dLat = (lat2 - lat1) * rad, dLon = (lon2 - lon1) * rad;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(a));
+// ---------- События ----------
+document.addEventListener('click', e => {
+  const t = e.target.closest('button');
+  if (e.target === $('ov')) return closeSheet();
+  if (!t) return;
+  if (t.dataset.inc) return change(t.dataset.inc, 1);
+  if (t.dataset.dec) return change(t.dataset.dec, -1);
+  if (t.dataset.c) { cat = t.dataset.c; return render(); }
+  if (t.dataset.pt) return selectPoint(t.dataset.pt);
+  if (t.dataset.m && !t.disabled) { checkout.method = t.dataset.m; return openCart(); }
+  if (t.id === 'pointBtn') return openPoints();
+  if (t.id === 'cartBtn') return openCart();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('ov').hidden) closeSheet(); });
+$('q').oninput = e => { query = e.target.value; renderGrid(); };
+
+render();
+if (!pointId) openPoints();
 }
 </script>
 </body>
