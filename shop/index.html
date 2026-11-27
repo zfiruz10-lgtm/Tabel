@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>Магазин СТТ демо</title>
+<title>Магазин Фаровон</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -11,10 +11,10 @@
 /* VOICE everyday shopping app, looks like a shipped product
    IDEA a store shelf that only shows what is on this point's shelf today
    PICTURE the product grid itself, with the chosen point as a bold header bar
-   COLOUR white ground, ink, orange #ff5a1f accent for prices and actions, soft greys
+   COLOUR white ground, ink, Farovon logo green #1f9a3a for header and actions, soft greys
    TYPE Golos Text (built for Cyrillic) for everything, weights for hierarchy
    LAYOUT phone-first single column; at 720px+ grid widens to 3–4 columns, sheets stay centred */
-:root{color-scheme:light dark;--bg:light-dark(#ffffff,#121316);--ink:light-dark(#16181d,#eef0f4);--mut:light-dark(#6b7280,#9aa1ad);--surf:light-dark(#f3f4f6,#1d1f24);--line:light-dark(#e6e8ec,#2a2d33);--acc:#ff5a1f;--acc-ink:#fff;--ok:light-dark(#18864b,#4cc785);--ok-bg:light-dark(#e7f6ee,#173324);--warn:light-dark(#a35b00,#f0b45a);--warn-bg:light-dark(#fff3e0,#3a2a12)}
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#121316);--ink:light-dark(#16181d,#eef0f4);--mut:light-dark(#6b7280,#9aa1ad);--surf:light-dark(#f3f4f6,#1d1f24);--line:light-dark(#e6e8ec,#2a2d33);--acc:light-dark(#1f9a3a,#2fb24c);--acc-ink:#fff;--ok:light-dark(#18864b,#4cc785);--ok-bg:light-dark(#e7f6ee,#173324);--warn:light-dark(#a35b00,#f0b45a);--warn-bg:light-dark(#fff3e0,#3a2a12)}
 :root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
 *{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
 html,body{margin:0}
@@ -23,12 +23,22 @@ body{background:var(--bg);color:var(--ink);font:16px/1.45 "Golos Text",-apple-sy
 button,input,select,textarea{font:inherit;color:inherit}
 .wrap{max-width:1000px;margin:0 auto;padding:0 16px 120px}
 .top{position:sticky;top:0;z-index:20;background:var(--bg);padding:12px 0 10px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;height:40px;margin-bottom:10px}
+.brand img{height:30px;width:auto;max-width:180px;object-fit:contain}
+.wordmark{font-size:24px;font-weight:800;letter-spacing:-.02em;color:var(--acc)}
+.brand small{margin-left:auto;font-size:13px;color:var(--mut);white-space:nowrap}
 .pointbtn{width:100%;display:flex;align-items:center;gap:12px;border:0;background:var(--acc);color:var(--acc-ink);border-radius:18px;padding:12px 14px;text-align:left;cursor:pointer}
 .pointbtn svg{flex:none;width:26px;height:26px}
 .pointbtn b{display:block;font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pointbtn small{display:block;font-size:13px;opacity:.92}
 .pointbtn .chev{margin-left:auto;font-size:13px;font-weight:600;background:rgba(255,255,255,.2);border-radius:999px;padding:5px 10px;white-space:nowrap}
 .search{margin-top:10px;width:100%;border:1px solid var(--line);background:var(--surf);border-radius:14px;padding:12px 14px;font-size:16px}
+.srow{display:flex;gap:8px;margin-top:10px}
+.srow .search{margin-top:0;flex:1}
+.mybtn{flex:none;border:1px solid var(--line);background:var(--bg);border-radius:14px;padding:0 14px;font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap}
+.pic img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:13px}
+.mini{position:relative;overflow:hidden}
+.mini img{width:100%;height:100%;object-fit:cover}
 .cats{display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
 .cats::-webkit-scrollbar{display:none}
 .cat{flex:none;border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
@@ -51,7 +61,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .step span{font-weight:700;white-space:nowrap}
 .empty{text-align:center;color:var(--mut);padding:40px 10px}
 .cartbar{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:10px 16px calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(transparent,var(--bg) 30%)}
-.cartbar button{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:968px;margin:0 auto;border:0;background:var(--acc);color:var(--acc-ink);border-radius:16px;padding:16px 18px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 8px 24px rgba(255,90,31,.3)}
+.cartbar button{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:968px;margin:0 auto;border:0;background:var(--acc);color:var(--acc-ink);border-radius:16px;padding:16px 18px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 8px 24px rgba(31,154,58,.3)}
 .overlay{position:fixed;inset:0;z-index:50;background:rgba(10,12,16,.45);display:flex;align-items:flex-end;justify-content:center}
 .sheet{width:100%;max-width:560px;max-height:90vh;overflow:auto;background:var(--bg);border-radius:22px 22px 0 0;padding:8px 16px calc(20px + env(safe-area-inset-bottom,0px));animation:up .22s ease-out}
 @media(prefers-reduced-motion:reduce){.sheet{animation:none}}
@@ -115,17 +125,18 @@ label.f{display:block;font-size:13px;color:var(--mut);margin:12px 0 5px}
 
 <div class="wrap">
   <header class="top">
+    <div class="brand"><img id="logo" alt="Фаровон" src="data:image/png;base64,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"><span class="wordmark" id="wordmark" hidden>Фаровон</span><small>Интернет-магазин</small></div>
     <button class="pointbtn" id="pointBtn" aria-label="Выбрать точку">
       <svg aria-hidden="true"><use href="#i-pin"/></svg>
       <span style="min-width:0"><b id="pointName">Выберите точку</b><small id="pointSub">Покажем товары, которые есть на ней сейчас</small></span>
       <span class="chev">Сменить</span>
     </button>
-    <input id="q" class="search" type="search" placeholder="Поиск товаров" autocomplete="off">
+    <div class="srow"><input id="q" class="search" type="search" placeholder="Поиск товаров" autocomplete="off"><button class="mybtn" id="myBtn">Мои заказы</button></div>
     <nav class="cats" id="cats" aria-label="Категории"></nav>
   </header>
   <p class="note" id="note"></p>
   <main class="grid" id="grid"></main>
-  <p class="demo">Демо-версия: каталог, цены, точки и остатки примерные. В рабочей версии они загружаются из BILLZ.</p>
+  <p class="demo" id="demoNote">Демо-режим: каталог, цены, точки и остатки примерные.</p>
 </div>
 
 <div class="cartbar" id="cartBar" hidden><button id="cartBtn"><span id="cartCount"></span><span id="cartSum"></span></button></div>
@@ -134,92 +145,136 @@ label.f{display:block;font-size:13px;color:var(--mut);margin:12px 0 5px}
 
 <script>
 {
-const tg = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData !== undefined ? window.Telegram.WebApp : null;
+// ===== НАСТРОЙКА: адрес веб-приложения Apps Script магазина (заканчивается на /exec) =====
+const API_URL = 'https://script.google.com/macros/s/AKfycbyAHXsyUoqzh9ZQQ2qy-cccEI9meZtAV4hAmKLjc-OAItQZzZkTRa0JUxMunkaOypO1TQ/exec';
+// Логотип «Фаровон» уже встроен в страницу. Чтобы заменить — укажите ссылку на другую картинку.
+const LOGO_SRC = '';
+// Пока адрес не вписан или страница открыта не из Telegram, работает демо-режим с примерными данными.
+// =========================================================================================
+
+const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
 if (tg) { try { tg.ready(); tg.expand(); } catch (e) {} }
+const LIVE = !API_URL.startsWith('ВСТАВЬТЕ') && !!(tg && tg.initData);
 
-// ---------- Примерные данные (в рабочей версии — из BILLZ API) ----------
-const CATS = [
-  { id: 'bak', name: 'Бакалея', icon: 'i-sack', bg: '#fdf1dc' },
-  { id: 'milk', name: 'Молочное', icon: 'i-milk', bg: '#e6f0fd' },
-  { id: 'drink', name: 'Напитки', icon: 'i-bottle', bg: '#e2f5fa' },
-  { id: 'sweet', name: 'Сладости', icon: 'i-candy', bg: '#fdeedd' },
-  { id: 'can', name: 'Консервы', icon: 'i-can', bg: '#fde7e8' },
-  { id: 'chem', name: 'Бытовая химия', icon: 'i-spray', bg: '#efeafe' }
-];
-const PRODUCTS = [
-  ['bak', 'Рис девзира', '1 кг', 24], ['bak', 'Мука высший сорт', '2 кг', 19], ['bak', 'Сахар', '1 кг', 13],
-  ['bak', 'Масло подсолнечное', '1 л', 22], ['bak', 'Макароны рожки', '400 г', 9], ['bak', 'Гречка', '800 г', 16],
-  ['bak', 'Чай зелёный', '100 г', 18], ['bak', 'Соль йодированная', '1 кг', 4],
-  ['milk', 'Молоко 3,2%', '1 л', 11], ['milk', 'Кефир 2,5%', '900 мл', 10], ['milk', 'Сметана 20%', '400 г', 15],
-  ['milk', 'Сыр твёрдый', '300 г', 38], ['milk', 'Масло сливочное', '200 г', 27], ['milk', 'Йогурт клубничный', '250 г', 8],
-  ['drink', 'Вода питьевая', '1,5 л', 4], ['drink', 'Сок яблочный', '1 л', 14], ['drink', 'Газировка кола', '1,5 л', 12],
-  ['drink', 'Минеральная вода', '0,5 л', 5], ['drink', 'Холодный чай лимон', '1 л', 11],
-  ['sweet', 'Шоколад молочный', '90 г', 12], ['sweet', 'Печенье овсяное', '300 г', 13], ['sweet', 'Конфеты ассорти', '250 г', 29],
-  ['sweet', 'Вафли', '200 г', 9], ['sweet', 'Халва подсолнечная', '350 г', 17],
-  ['can', 'Тушёнка говяжья', '325 г', 31], ['can', 'Горошек зелёный', '400 г', 12], ['can', 'Кукуруза сладкая', '340 г', 13],
-  ['can', 'Томатная паста', '380 г', 11], ['can', 'Сгущённое молоко', '380 г', 16],
-  ['chem', 'Стиральный порошок', '3 кг', 64], ['chem', 'Средство для посуды', '500 мл', 14], ['chem', 'Мыло хозяйственное', '200 г', 5],
-  ['chem', 'Туалетная бумага', '4 рулона', 15], ['chem', 'Чистящее средство', '750 мл', 18]
-].map((p, i) => ({ id: 'p' + i, cat: p[0], name: p[1], unit: p[2], price: p[3] }));
+const ICONS = [['i-sack', '#fdf1dc'], ['i-milk', '#e6f0fd'], ['i-bottle', '#e2f5fa'], ['i-candy', '#fdeedd'], ['i-can', '#fde7e8'], ['i-spray', '#efeafe']];
 
-const POINTS = [
-  { id: 't1', name: 'ТТ-1 Центральный', addr: 'пр. Рудаки, 45', hours: '08:00–22:00', delivery: { fee: 15, freeFrom: 250, min: 80, eta: '45–90 мин' } },
-  { id: 't2', name: 'ТТ-2 Рынок', addr: 'ул. Сомони, 12', hours: '07:00–20:00', delivery: null },
-  { id: 't3', name: 'ТТ-3 Вокзал', addr: 'ул. Айни, 3', hours: '08:00–21:00', delivery: { fee: 20, freeFrom: 300, min: 100, eta: '60–120 мин' } },
-  { id: 't4', name: 'ТТ-4 Сино', addr: 'ул. Карамова, 88', hours: '09:00–21:00', delivery: null },
-  { id: 't5', name: 'Склад-2 Северный', addr: 'ул. Борбад, 140', hours: '08:00–18:00', delivery: { fee: 10, freeFrom: 400, min: 150, eta: 'на следующий день' } },
-  { id: 't6', name: 'ТТ-6 Профсоюз', addr: 'ул. Мирзо Турсунзаде, 30', hours: '08:00–22:00', delivery: { fee: 15, freeFrom: 250, min: 80, eta: '45–90 мин' } },
-  { id: 't7', name: 'ТТ-7 Зарафшон', addr: 'мкр. Зарафшон, 5', hours: '08:00–20:00', delivery: null },
-  { id: 't8', name: 'ТТ-8 Шохмансур', addr: 'ул. Шотемура, 21', hours: '08:00–21:00', delivery: null }
-];
-// Остатки: на каждой точке своё наличие (детерминированный пример)
-const STOCK = {};
-POINTS.forEach((pt, a) => {
-  STOCK[pt.id] = {};
-  PRODUCTS.forEach((p, b) => {
-    let s = ((a + 3) * 7919 + (b + 1) * 104729) % 2147483647;
-    s = s * 16807 % 2147483647;
-    const r = s % 100;
-    STOCK[pt.id][p.id] = r < 22 ? 0 : r < 32 ? 1 + r % 3 : 4 + r % 40;
-  });
-});
+// ---------- Демо-данные (используются только без сервера) ----------
+const DEMO = {
+  cats: [['bak', 'Бакалея'], ['milk', 'Молочное'], ['drink', 'Напитки'], ['sweet', 'Сладости'], ['can', 'Консервы'], ['chem', 'Бытовая химия']]
+    .map(c => ({ id: c[0], name: c[1] })),
+  products: [
+    ['bak', 'Рис девзира', '1 кг', 24], ['bak', 'Мука высший сорт', '2 кг', 19], ['bak', 'Сахар', '1 кг', 13],
+    ['bak', 'Масло подсолнечное', '1 л', 22], ['bak', 'Макароны рожки', '400 г', 9], ['bak', 'Гречка', '800 г', 16],
+    ['bak', 'Чай зелёный', '100 г', 18], ['bak', 'Соль йодированная', '1 кг', 4],
+    ['milk', 'Молоко 3,2%', '1 л', 11], ['milk', 'Кефир 2,5%', '900 мл', 10], ['milk', 'Сметана 20%', '400 г', 15],
+    ['milk', 'Сыр твёрдый', '300 г', 38], ['milk', 'Масло сливочное', '200 г', 27], ['milk', 'Йогурт клубничный', '250 г', 8],
+    ['drink', 'Вода питьевая', '1,5 л', 4], ['drink', 'Сок яблочный', '1 л', 14], ['drink', 'Газировка кола', '1,5 л', 12],
+    ['drink', 'Минеральная вода', '0,5 л', 5], ['drink', 'Холодный чай лимон', '1 л', 11],
+    ['sweet', 'Шоколад молочный', '90 г', 12], ['sweet', 'Печенье овсяное', '300 г', 13], ['sweet', 'Конфеты ассорти', '250 г', 29],
+    ['sweet', 'Вафли', '200 г', 9], ['sweet', 'Халва подсолнечная', '350 г', 17],
+    ['can', 'Тушёнка говяжья', '325 г', 31], ['can', 'Горошек зелёный', '400 г', 12], ['can', 'Кукуруза сладкая', '340 г', 13],
+    ['can', 'Томатная паста', '380 г', 11], ['can', 'Сгущённое молоко', '380 г', 16],
+    ['chem', 'Стиральный порошок', '3 кг', 64], ['chem', 'Средство для посуды', '500 мл', 14], ['chem', 'Мыло хозяйственное', '200 г', 5],
+    ['chem', 'Туалетная бумага', '4 рулона', 15], ['chem', 'Чистящее средство', '750 мл', 18]
+  ].map((p, i) => ({ id: 'p' + i, cat: p[0], name: p[1], unit: p[2], price: p[3], photo: '' })),
+  points: [
+    { id: 't1', name: 'ТТ-1 Центральный', addr: 'пр. Рудаки, 45', hours: '08:00–22:00', delivery: { fee: 15, freeFrom: 250, min: 80, eta: '45–90 мин' } },
+    { id: 't2', name: 'ТТ-2 Рынок', addr: 'ул. Сомони, 12', hours: '07:00–20:00', delivery: null },
+    { id: 't3', name: 'ТТ-3 Вокзал', addr: 'ул. Айни, 3', hours: '08:00–21:00', delivery: { fee: 20, freeFrom: 300, min: 100, eta: '60–120 мин' } },
+    { id: 't4', name: 'ТТ-4 Сино', addr: 'ул. Карамова, 88', hours: '09:00–21:00', delivery: null },
+    { id: 't5', name: 'Склад-2 Северный', addr: 'ул. Борбад, 140', hours: '08:00–18:00', delivery: { fee: 10, freeFrom: 400, min: 150, eta: 'на следующий день' } },
+    { id: 't6', name: 'ТТ-6 Профсоюз', addr: 'ул. Мирзо Турсунзаде, 30', hours: '08:00–22:00', delivery: { fee: 15, freeFrom: 250, min: 80, eta: '45–90 мин' } },
+    { id: 't7', name: 'ТТ-7 Зарафшон', addr: 'мкр. Зарафшон, 5', hours: '08:00–20:00', delivery: null },
+    { id: 't8', name: 'ТТ-8 Шохмансур', addr: 'ул. Шотемура, 21', hours: '08:00–21:00', delivery: null }
+  ],
+  stock(pointId) {
+    const a = DEMO.points.findIndex(p => p.id === pointId), out = {};
+    DEMO.products.forEach((p, b) => {
+      let s = ((a + 3) * 7919 + (b + 1) * 104729) % 2147483647;
+      s = s * 16807 % 2147483647;
+      const r = s % 100;
+      if (r >= 22) out[p.id] = r < 32 ? 1 + r % 3 : 4 + r % 40;
+    });
+    return out;
+  },
+  orders: []
+};
+DEMO.points.forEach(p => p.count = Object.keys(DEMO.stock(p.id)).length);
 
 // ---------- Состояние ----------
 const store = {
   get(k, d) { try { const v = localStorage.getItem('stt_shop_' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem('stt_shop_' + k, JSON.stringify(v)); } catch (e) {} }
 };
+let CATS = [], PRODUCTS = [], POINTS = [], STOCK = {};
 let pointId = store.get('point', null);
-if (!POINTS.some(p => p.id === pointId)) pointId = null;
 let cart = store.get('cart', {});
-let cat = 'all', query = '';
+let cat = 'all', query = '', loading = true, busy = false;
 let checkout = { method: 'pickup', addr: '', phone: '', slot: 'Как можно скорее', pay: 'cash', comment: '' };
-let lastOrder = null, orderTimer = null;
+let lastOrder = null, orderTimer = null, client = null;
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const money = n => Math.round(n).toLocaleString('ru-RU') + ' с.';
 const point = () => POINTS.find(p => p.id === pointId) || null;
-const stock = id => pointId ? (STOCK[pointId][id] || 0) : 0;
-const catOf = id => CATS.find(c => c.id === id);
-const pic = (p, cls) => { const c = catOf(p.cat); return '<div class="' + cls + '" style="background:' + c.bg + '"><svg aria-hidden="true"><use href="#' + c.icon + '"/></svg></div>'; };
+const stock = id => { const v = STOCK[id]; return v === undefined ? 0 : v < 0 ? 99 : v; };
+const limited = id => STOCK[id] !== undefined && STOCK[id] >= 0;
+const catIdx = id => Math.max(0, CATS.findIndex(c => c.id === id));
+const pic = (p, cls) => {
+  if (p.photo) return '<div class="' + cls + '"><img src="' + esc(p.photo) + '" alt="" loading="lazy"></div>';
+  const ic = ICONS[catIdx(p.cat) % ICONS.length];
+  return '<div class="' + cls + '" style="background:' + ic[1] + '"><svg aria-hidden="true"><use href="#' + ic[0] + '"/></svg></div>';
+};
 function haptic(t) { try { tg.HapticFeedback.impactOccurred(t || 'light'); } catch (e) {} }
 let tt;
-function toast(t) { const el = $('toast'); el.textContent = t; el.classList.remove('off'); clearTimeout(tt); tt = setTimeout(() => el.classList.add('off'), 3200); }
+function toast(t) { const el = $('toast'); el.textContent = t; el.classList.remove('off'); clearTimeout(tt); tt = setTimeout(() => el.classList.add('off'), 3800); }
 function save() { store.set('point', pointId); store.set('cart', cart); }
+
+async function api(action, data) {
+  const res = await fetch(API_URL, { method: 'POST',
+    body: JSON.stringify(Object.assign({ action: action, initData: tg ? tg.initData : '' }, data || {})) });
+  return res.json();
+}
+
+// ---------- Загрузка ----------
+async function boot() {
+  render();
+  if (!LIVE) {
+    CATS = DEMO.cats; PRODUCTS = DEMO.products; POINTS = DEMO.points;
+  } else {
+    try {
+      const r = await api('init', pointId ? { point: pointId } : {});
+      if (!r.ok) throw new Error(r.message);
+      CATS = r.cats; PRODUCTS = r.products; POINTS = r.points; client = r.client;
+      if (r.stock) STOCK = r.stock;
+      if (client) { checkout.phone = client.phone || ''; checkout.addr = client.address || ''; }
+    } catch (e) {
+      loading = false;
+      $('grid').innerHTML = '<div class="empty" style="grid-column:1/-1">Нет связи с магазином. Проверьте интернет и откройте снова.</div>';
+      return;
+    }
+  }
+  if (!POINTS.some(p => p.id === pointId)) pointId = null;
+  if (pointId && !LIVE) STOCK = DEMO.stock(pointId);
+  loading = false;
+  cleanCart();
+  render();
+  if (!pointId) openPoints();
+}
 
 // ---------- Каталог ----------
 function renderHeader() {
   const p = point();
   $('pointName').textContent = p ? p.name : 'Выберите точку';
-  $('pointSub').textContent = p ? (p.delivery ? 'Доставка ' + p.delivery.eta + ' · самовывоз' : 'Только самовывоз') + ' · ' + p.hours
+  $('pointSub').textContent = p ? (p.delivery ? 'Доставка ' + p.delivery.eta + ' · самовывоз' : 'Только самовывоз') + (p.hours ? ' · ' + p.hours : '')
     : 'Покажем товары, которые есть на ней сейчас';
   $('cats').innerHTML = [{ id: 'all', name: 'Все' }].concat(CATS).map(c =>
-    '<button class="cat" data-c="' + c.id + '" aria-pressed="' + (cat === c.id) + '">' + esc(c.name) + '</button>').join('');
+    '<button class="cat" data-c="' + esc(c.id) + '" aria-pressed="' + (cat === c.id) + '">' + esc(c.name) + '</button>').join('');
 }
 
 function renderGrid() {
   const g = $('grid');
+  if (loading) { g.innerHTML = '<div class="empty" style="grid-column:1/-1">Загрузка…</div>'; $('note').textContent = ''; return; }
   if (!pointId) { g.innerHTML = '<div class="empty" style="grid-column:1/-1">Выберите точку, чтобы увидеть товары в наличии</div>'; $('note').textContent = ''; return; }
   const avail = PRODUCTS.filter(p => stock(p.id) > 0);
   const q = query.trim().toLowerCase();
@@ -228,9 +283,9 @@ function renderGrid() {
   g.innerHTML = list.length ? list.map(p => {
     const s = stock(p.id), n = cart[p.id] || 0;
     return '<article class="card">' + pic(p, 'pic') + '<div class="price">' + money(p.price) + '</div><div class="name">' + esc(p.name) +
-      '</div><div class="unit">' + esc(p.unit) + '</div>' + (s <= 3 ? '<span class="left">Осталось ' + s + ' шт.</span>' : '') +
-      (n ? '<div class="step"><button data-dec="' + p.id + '" aria-label="Меньше">−</button><span>' + n + ' шт.</span><button data-inc="' + p.id + '" aria-label="Больше">+</button></div>'
-        : '<button class="add" data-inc="' + p.id + '">В корзину</button>') + '</article>';
+      '</div><div class="unit">' + esc(p.unit) + '</div>' + (limited(p.id) && s <= 3 ? '<span class="left">Осталось ' + s + ' шт.</span>' : '') +
+      (n ? '<div class="step"><button data-dec="' + esc(p.id) + '" aria-label="Меньше">−</button><span>' + n + ' шт.</span><button data-inc="' + esc(p.id) + '" aria-label="Больше">+</button></div>'
+        : '<button class="add" data-inc="' + esc(p.id) + '">В корзину</button>') + '</article>';
   }).join('') : '<div class="empty" style="grid-column:1/-1">Ничего не найдено на этой точке</div>';
 }
 
@@ -238,15 +293,26 @@ function cartLines() { return Object.keys(cart).map(id => ({ p: PRODUCTS.find(x 
 function subtotal() { return cartLines().reduce((a, l) => a + l.p.price * l.n, 0); }
 function renderCartBar() {
   const n = cartLines().reduce((a, l) => a + l.n, 0);
-  $('cartBar').hidden = !n;
+  $('cartBar').hidden = !n || loading;
   $('cartCount').textContent = 'Корзина · ' + n + ' шт.';
   $('cartSum').textContent = money(subtotal());
 }
 function render() { renderHeader(); renderGrid(); renderCartBar(); save(); }
 
+// Убирает из корзины то, чего нет на выбранной точке; возвращает [убрано, уменьшено]
+function cleanCart() {
+  let removed = 0, cut = 0;
+  Object.keys(cart).forEach(pid => {
+    const s = stock(pid);
+    if (!PRODUCTS.some(p => p.id === pid) || s === 0) { delete cart[pid]; removed++; }
+    else if (cart[pid] > s) { cart[pid] = s; cut++; }
+  });
+  return [removed, cut];
+}
+
 function change(id, d) {
   const n = (cart[id] || 0) + d, s = stock(id);
-  if (n > s) { toast('На этой точке осталось только ' + s + ' шт.'); return; }
+  if (n > s) { toast(limited(id) ? 'На этой точке осталось только ' + s + ' шт.' : 'Не больше ' + s + ' шт. в одном заказе'); return; }
   if (n <= 0) delete cart[id]; else cart[id] = n;
   haptic();
   render();
@@ -255,35 +321,40 @@ function change(id, d) {
 
 // ---------- Шторки ----------
 function openSheet(html, view) { const s = $('sheet'); s.innerHTML = '<div class="grab"></div>' + html; s.dataset.view = view; $('ov').hidden = false; }
-function closeSheet() { $('ov').hidden = true; $('sheet').dataset.view = ''; }
+function closeSheet() { $('ov').hidden = true; $('sheet').dataset.view = ''; clearInterval(orderTimer); }
 
 function openPoints() {
   openSheet('<h2>Выберите точку</h2><input id="ptq" class="in" type="search" placeholder="Название или адрес" autocomplete="off"><div id="ptList" style="margin-top:12px"></div>' +
-    '<p class="hint">В демо 8 точек. В рабочей версии — все 234, с поиском и подсказкой ближайшей.</p>', 'points');
+    (LIVE ? '' : '<p class="hint">Демо: 8 точек. В рабочей версии — все точки сети, с поиском.</p>'), 'points');
   const draw = () => {
     const q = $('ptq').value.trim().toLowerCase();
-    $('ptList').innerHTML = POINTS.filter(p => !q || (p.name + ' ' + p.addr).toLowerCase().includes(q)).map(p => {
-      const n = PRODUCTS.filter(x => STOCK[p.id][x.id] > 0).length;
-      return '<button class="pt" data-pt="' + p.id + '" aria-current="' + (p.id === pointId) + '"><span style="flex:1"><b>' + esc(p.name) + '</b><small>' + esc(p.addr) + ' · ' + esc(p.hours) + '</small><span class="tags">' +
-        (p.delivery ? '<span class="tag ok">Доставка ' + esc(p.delivery.eta) + '</span>' : '<span class="tag">Только самовывоз</span>') +
-        '<span class="tag">' + n + ' товаров в наличии</span></span></span></button>';
-    }).join('') || '<div class="empty">Точка не найдена</div>';
+    const list = POINTS.filter(p => !q || (p.name + ' ' + p.addr).toLowerCase().includes(q));
+    $('ptList').innerHTML = list.slice(0, 60).map(p =>
+      '<button class="pt" data-pt="' + esc(p.id) + '" aria-current="' + (p.id === pointId) + '"><span style="flex:1"><b>' + esc(p.name) + '</b><small>' +
+      esc(p.addr) + (p.hours ? ' · ' + esc(p.hours) : '') + '</small><span class="tags">' +
+      (p.delivery ? '<span class="tag ok">Доставка ' + esc(p.delivery.eta) + '</span>' : '<span class="tag">Только самовывоз</span>') +
+      (p.count !== undefined ? '<span class="tag">' + p.count + ' товаров в наличии</span>' : '') + '</span></span></button>').join('') +
+      (list.length > 60 ? '<p class="hint">Показаны первые 60 — уточните поиск</p>' : '') || '<div class="empty">Точка не найдена</div>';
   };
   $('ptq').oninput = draw;
   draw();
 }
 
-function selectPoint(id) {
+async function selectPoint(id) {
+  if (busy) return;
   const prev = pointId;
-  pointId = id;
-  let removed = 0, cut = 0;
-  Object.keys(cart).forEach(pid => {
-    const s = stock(pid);
-    if (s === 0) { delete cart[pid]; removed++; } else if (cart[pid] > s) { cart[pid] = s; cut++; }
-  });
+  if (LIVE) {
+    busy = true; loading = true; closeSheet(); pointId = id; render();
+    try {
+      const r = await api('stock', { point: id });
+      if (!r.ok) throw new Error(r.message);
+      STOCK = r.stock;
+    } catch (e) { toast('Не удалось загрузить наличие. Попробуйте ещё раз.'); STOCK = {}; }
+    busy = false; loading = false;
+  } else { pointId = id; STOCK = DEMO.stock(id); closeSheet(); }
+  const [removed, cut] = cleanCart();
   const p = point();
-  if (!p.delivery && checkout.method === 'delivery') checkout.method = 'pickup';
-  closeSheet();
+  if (p && !p.delivery && checkout.method === 'delivery') checkout.method = 'pickup';
   render();
   if (prev && prev !== id && (removed || cut))
     toast((removed ? 'Убрано из корзины: ' + removed + ' — нет на этой точке. ' : '') + (cut ? 'Уменьшено: ' + cut + '.' : ''));
@@ -292,16 +363,18 @@ function selectPoint(id) {
 function openCart() {
   const p = point(), lines = cartLines(), sub = subtotal(), d = p.delivery;
   const isDel = checkout.method === 'delivery' && d;
-  const fee = isDel ? (sub >= d.freeFrom ? 0 : d.fee) : 0;
+  const fee = isDel ? (d.freeFrom && sub >= d.freeFrom ? 0 : d.fee) : 0;
   const tooSmall = isDel && sub < d.min;
+  const canContact = tg && tg.requestContact && tg.isVersionAtLeast && tg.isVersionAtLeast('6.9');
   openSheet('<h2>Корзина</h2><div class="hint" style="margin-top:-6px">' + esc(p.name) + ', ' + esc(p.addr) + '</div>' +
     lines.map(l => '<div class="line">' + pic(l.p, 'mini') + '<div class="nm">' + esc(l.p.name) + '<small>' + esc(l.p.unit) + ' · ' + money(l.p.price) + '</small></div>' +
-      '<div class="qty"><button data-dec="' + l.p.id + '" aria-label="Меньше">−</button><span>' + l.n + '</span><button data-inc="' + l.p.id + '" aria-label="Больше">+</button></div></div>').join('') +
+      '<div class="qty"><button data-dec="' + esc(l.p.id) + '" aria-label="Меньше">−</button><span>' + l.n + '</span><button data-inc="' + esc(l.p.id) + '" aria-label="Больше">+</button></div></div>').join('') +
     '<div class="seg" role="group" aria-label="Способ получения"><button data-m="pickup" aria-pressed="' + !isDel + '">Самовывоз</button><button data-m="delivery" aria-pressed="' + !!isDel + '"' + (d ? '' : ' disabled') + '>Доставка</button></div>' +
-    '<div class="hint">' + (d ? (isDel ? 'Доставка ' + d.eta + ' · ' + money(d.fee) + ', бесплатно от ' + money(d.freeFrom) + ' · минимальный заказ ' + money(d.min)
+    '<div class="hint">' + (d ? (isDel ? 'Доставка ' + esc(d.eta) + ' · ' + money(d.fee) + (d.freeFrom ? ', бесплатно от ' + money(d.freeFrom) : '') + (d.min ? ' · минимальный заказ ' + money(d.min) : '')
       : 'Заберите заказ на точке, мы пришлём сообщение, когда он будет собран') : 'На этой точке нет доставки — только самовывоз') + '</div>' +
     (isDel ? '<label class="f" for="addr">Адрес доставки</label><input id="addr" class="in" placeholder="Улица, дом, квартира" value="' + esc(checkout.addr) + '">' : '') +
     '<label class="f" for="phone">Телефон</label><input id="phone" class="in" type="tel" inputmode="tel" placeholder="+992 __ ___ __ __" value="' + esc(checkout.phone) + '">' +
+    (canContact ? '<button class="link" id="getPhone" style="border:0;background:none;color:var(--acc);font-weight:600;padding:8px 0;cursor:pointer">Взять номер из Telegram</button>' : '') +
     '<label class="f" for="slot">Когда</label><select id="slot" class="in">' + ['Как можно скорее', 'Сегодня 12:00–14:00', 'Сегодня 16:00–18:00', 'Сегодня 18:00–20:00', 'Завтра 10:00–12:00']
       .map(s => '<option' + (s === checkout.slot ? ' selected' : '') + '>' + s + '</option>').join('') + '</select>' +
     '<label class="f">Оплата</label><div class="radio"><label><input type="radio" name="pay" value="cash"' + (checkout.pay === 'cash' ? ' checked' : '') + '>Наличными</label>' +
@@ -317,27 +390,101 @@ function openCart() {
     const r = document.querySelector('input[name=pay]:checked'); if (r) checkout.pay = r.value;
   };
   $('sheet').oninput = keep; $('sheet').onchange = keep;
-  $('order').onclick = () => {
-    keep();
-    if (isDel && checkout.addr.trim().length < 5) return toast('Укажите адрес доставки');
-    if (checkout.phone.replace(/\D/g, '').length < 9) return toast('Укажите номер телефона');
-    lastOrder = { no: 10000 + Math.floor(Math.random() * 89999), point: p, lines: lines, total: sub + fee, isDel: !!isDel, slot: checkout.slot, step: 0 };
-    cart = {}; render(); haptic('heavy'); openOrder();
-    clearInterval(orderTimer);
-    orderTimer = setInterval(() => { if (lastOrder.step < 2) { lastOrder.step++; if ($('sheet').dataset.view === 'order') openOrder(); } else clearInterval(orderTimer); }, 4000);
+  if ($('getPhone')) $('getPhone').onclick = () => {
+    try {
+      tg.requestContact((ok, ev) => {
+        const ph = ok && ev && ev.responseUnsafe && ev.responseUnsafe.contact && ev.responseUnsafe.contact.phone_number;
+        if (ph) { checkout.phone = (String(ph).startsWith('+') ? '' : '+') + ph; $('phone').value = checkout.phone; }
+      });
+    } catch (e) {}
   };
+  $('order').onclick = () => placeOrder(keep, isDel, sub, fee);
 }
 
-function openOrder() {
-  const o = lastOrder;
-  const steps = ['Заказ принят', 'Собираем на точке', o.isDel ? 'Курьер в пути' : 'Готов к выдаче'];
-  openSheet('<h2>Заказ № ' + o.no + '</h2><div class="hint">' + esc(o.point.name) + ' · ' + (o.isDel ? 'доставка' : 'самовывоз') + ' · ' + esc(o.slot) + '</div>' +
-    '<div class="track">' + steps.map((s, i) => '<div class="' + (i <= o.step ? 'on' : '') + '"><i>' + (i < o.step ? '✓' : i + 1) + '</i>' + s + '</div>').join('') + '</div>' +
-    '<div class="sum">' + o.lines.map(l => '<div><span>' + esc(l.p.name) + ' × ' + l.n + '</span><span>' + money(l.p.price * l.n) + '</span></div>').join('') +
+async function placeOrder(keep, isDel, sub, fee) {
+  keep();
+  if (isDel && checkout.addr.trim().length < 5) return toast('Укажите адрес доставки');
+  if (checkout.phone.replace(/\D/g, '').length < 9) return toast('Укажите номер телефона');
+  if (busy) return;
+  const p = point(), lines = cartLines(), btn = $('order');
+  if (!LIVE) {
+    lastOrder = { no: 1000 + DEMO.orders.length + 1, date: new Date().toLocaleDateString('ru-RU'), point: p.name, method: isDel ? 'delivery' : 'pickup',
+      slot: checkout.slot, total: sub + fee, fee: fee, status: 'Новый', lines: lines.map(l => ({ name: l.p.name, qty: l.n, sum: l.p.price * l.n })) };
+    DEMO.orders.unshift(lastOrder);
+    cart = {}; render(); haptic('heavy'); openOrder();
+    const seq = ['Собирается', isDel ? 'В пути' : 'Готов к выдаче'];
+    let i = 0;
+    orderTimer = setInterval(() => { if (i < seq.length) { lastOrder.status = seq[i++]; if ($('sheet').dataset.view === 'order') openOrder(true); } else clearInterval(orderTimer); }, 4000);
+    return;
+  }
+  busy = true; btn.disabled = true; btn.textContent = 'Отправляем заказ…';
+  try {
+    const name = client && client.name ? client.name :
+      [tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.first_name, tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.last_name].filter(Boolean).join(' ');
+    const r = await api('order', { point: pointId, items: lines.map(l => ({ id: l.p.id, qty: l.n })), method: isDel ? 'delivery' : 'pickup',
+      address: checkout.addr, phone: checkout.phone, slot: checkout.slot, pay: checkout.pay, comment: checkout.comment, name: name });
+    busy = false;
+    if (r.stock) STOCK = r.stock;
+    if (!r.ok) {
+      toast(r.message || 'Не удалось оформить заказ');
+      if (r.error === 'stock') { cleanCart(); render(); openCart(); }
+      else { btn.disabled = false; btn.textContent = 'Оформить заказ'; }
+      return;
+    }
+    lastOrder = r.order;
+    client = Object.assign(client || {}, { phone: checkout.phone, address: checkout.addr });
+    checkout.comment = '';
+    cart = {}; render(); haptic('heavy'); openOrder();
+    orderTimer = setInterval(refreshOrder, 20000);
+  } catch (e) {
+    busy = false; btn.disabled = false; btn.textContent = 'Оформить заказ';
+    toast('Нет связи с магазином. Заказ не отправлен — попробуйте ещё раз.');
+  }
+}
+
+async function refreshOrder() {
+  if ($('sheet').dataset.view !== 'order') return clearInterval(orderTimer);
+  try {
+    const r = await api('myorders');
+    const o = r.ok && r.orders.find(x => x.no === lastOrder.no);
+    if (o && o.status !== lastOrder.status) { lastOrder.status = o.status; openOrder(true); }
+  } catch (e) {}
+}
+
+function steps(o) {
+  const last = o.method === 'delivery' ? 'В пути' : 'Готов к выдаче';
+  return ['Новый', 'Собирается', last, 'Выполнен'];
+}
+const STEP_NAMES = { 'Новый': 'Заказ принят', 'Собирается': 'Собираем на точке', 'Готов к выдаче': 'Готов к выдаче', 'В пути': 'Курьер в пути', 'Выполнен': 'Выполнен' };
+
+function openOrder(keepTimer) {
+  const o = lastOrder, st = steps(o), cur = Math.max(0, st.indexOf(o.status));
+  const cancelled = o.status === 'Отменён';
+  const s = $('sheet');
+  s.innerHTML = '<div class="grab"></div><h2>Заказ № ' + esc(o.no) + '</h2><div class="hint">' + esc(o.point) + ' · ' + (o.method === 'delivery' ? 'доставка' : 'самовывоз') + ' · ' + esc(o.slot) + '</div>' +
+    (cancelled ? '<div class="warn" style="font-size:16px;margin:14px 0">Заказ отменён</div>' :
+      '<div class="track">' + st.map((x, i) => '<div class="' + (i <= cur ? 'on' : '') + '"><i>' + (i < cur || (i === cur && x === 'Выполнен') ? '✓' : i + 1) + '</i>' + STEP_NAMES[x] + '</div>').join('') + '</div>') +
+    '<div class="sum">' + o.lines.map(l => '<div><span>' + esc(l.name) + ' × ' + l.qty + '</span><span>' + money(l.sum) + '</span></div>').join('') +
+    (o.fee ? '<div><span>Доставка</span><span>' + money(o.fee) + '</span></div>' : '') +
     '<div class="tot"><span>Итого</span><span>' + money(o.total) + '</span></div></div>' +
-    '<p class="hint" style="margin-top:12px">В рабочей версии заказ уходит в BILLZ на выбранную точку, а статусы приходят сообщением от бота.</p>' +
-    '<button class="big ghost" id="done">Вернуться в каталог</button>', 'order');
+    '<p class="hint" style="margin-top:12px">' + (LIVE ? 'Статус обновится сам. Бот тоже пришлёт сообщение, когда заказ будет готов.' : 'Демо: статусы меняются сами. В рабочей версии их меняют сотрудники точки.') + '</p>' +
+    '<button class="big ghost" id="done">Вернуться в каталог</button>';
+  s.dataset.view = 'order'; $('ov').hidden = false;
   $('done').onclick = closeSheet;
+}
+
+async function openMyOrders() {
+  openSheet('<h2>Мои заказы</h2><div id="myList"><div class="empty">Загрузка…</div></div>', 'orders');
+  let list = [];
+  if (LIVE) {
+    try { const r = await api('myorders'); list = r.ok ? r.orders : []; }
+    catch (e) { $('myList').innerHTML = '<div class="empty">Нет связи с магазином</div>'; return; }
+  } else list = DEMO.orders.map(o => ({ no: o.no, date: o.date, point: o.point, method: o.method, total: o.total, status: o.status,
+    compo: o.lines.map(l => l.name + ' × ' + l.qty).join('; ') }));
+  $('myList').innerHTML = list.length ? list.map(o => '<div class="line" style="align-items:flex-start"><div class="nm"><b>№ ' + esc(o.no) + '</b> · ' + esc(o.date) +
+    '<small>' + esc(o.point) + ' · ' + (o.method === 'delivery' ? 'доставка' : 'самовывоз') + '</small><small>' + esc(o.compo) + '</small></div>' +
+    '<div style="text-align:right"><b style="white-space:nowrap">' + money(o.total) + '</b><br><span class="tag' + (o.status === 'Выполнен' ? ' ok' : '') + '">' + esc(o.status) + '</span></div></div>').join('')
+    : '<div class="empty">Заказов пока нет</div>';
 }
 
 // ---------- События ----------
@@ -352,12 +499,14 @@ document.addEventListener('click', e => {
   if (t.dataset.m && !t.disabled) { checkout.method = t.dataset.m; return openCart(); }
   if (t.id === 'pointBtn') return openPoints();
   if (t.id === 'cartBtn') return openCart();
+  if (t.id === 'myBtn') return openMyOrders();
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('ov').hidden) closeSheet(); });
 $('q').oninput = e => { query = e.target.value; renderGrid(); };
 
-render();
-if (!pointId) openPoints();
+if (LIVE) $('demoNote').remove();
+if (LOGO_SRC) $('logo').src = LOGO_SRC;
+boot();
 }
 </script>
 </body>
